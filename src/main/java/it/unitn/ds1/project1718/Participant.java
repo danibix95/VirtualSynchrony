@@ -28,28 +28,28 @@ public class Participant extends Node {
         .build();
     }
 
-    public void onDataMessage(DataMessage msg){
+    public void onDataMessage(DataMessage msg) {
 
     }
 
-    public void onFlushMessage(FlushMessage msg){
+    public void onFlushMessage(FlushMessage msg) {
     	List<ActorRef> view = msg.view;
-    	if(!receivedFlush.containsKey(view)){
-    		receivedFlush.put(view,new ArrayList<ActorRef>());
+    	if (!receivedFlush.containsKey(view)) {
+    		receivedFlush.put(view, new ArrayList<ActorRef>());
     	}
     	receivedFlush.get(view).add(getSender());
-    	if(receivedFlush.get(view).containsAll(view)){
+    	if (receivedFlush.get(view).containsAll(view)) {
     		// install new view 
     		participants = view;
     		receivedFlush.remove(view);
     	}
     }
 
-    public void onUnstableSharingMessage(UnstableSharingMessage msg){
+    public void onUnstableSharingMessage(UnstableSharingMessage msg) {
 
     }
 
-    public void onStableMessage(StableMessage msg){
+    public void onStableMessage(StableMessage msg) {
 
     }
 }

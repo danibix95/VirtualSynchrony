@@ -30,7 +30,7 @@ public abstract class Node extends AbstractActor {
         public final int id;
         public List<ActorRef> members;
 
-        public View(int id,List<ActorRef> members){
+        public View(int id, List<ActorRef> members) {
             this.id = id;
             this.members = members;
         }
@@ -38,7 +38,7 @@ public abstract class Node extends AbstractActor {
 
     void setGroup(StartMessage sm) {
         participants = new ArrayList<ActorRef>();
-        for (ActorRef actor: sm.groupMembers) {
+        for (ActorRef actor : sm.groupMembers) {
             if (!actor.equals(getSelf())) {
                 this.participants.add(actor);
             }
@@ -48,18 +48,19 @@ public abstract class Node extends AbstractActor {
     public abstract void onDataMessage(DataMessage msg);
 
     protected void multicast(Serializable m) {
-        multicastToView(m,participants);
+        multicastToView(m, participants);
     }
 
-    protected void multicastToView(Serializable m,List<ActorRef> view) {
+    protected void multicastToView(Serializable m, List<ActorRef> view) {
         List<ActorRef> shuffledGroup = new ArrayList<>(view);
         Collections.shuffle(shuffledGroup);
-        for(ActorRef p:shuffledGroup){
-            if(!p.equals(getSelf())){
+        for (ActorRef p:shuffledGroup) {
+            if (!p.equals(getSelf())) {
                 p.tell(m,getSelf());
-                try{
+                try {
                     Thread.sleep(rnd.nextInt(10));
-                } catch (InterruptedException e) {
+                }
+                catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -73,14 +74,13 @@ public abstract class Node extends AbstractActor {
 
     public void onViewChangeMessage(ViewChangeMessage msg){
         sendAllUnstableMessages(); // TODO: send unstable to the new view
-        multicastToView(new FlushMessage(participants),participants);
-        getSelf().tell(new FlushMessage(participants),getSelf());
+        multicastToView(new FlushMessage(participants), participants);
+        getSelf().tell(new FlushMessage(participants), getSelf());
     }
 
-    protected void sendAllUnstableMessages(){
-        for(Serializable m:unstableMessages){
+    protected void sendAllUnstableMessages() {
+        for (Serializable m : unstableMessages) {
             multicast(m);
         }
     }
-
 }
