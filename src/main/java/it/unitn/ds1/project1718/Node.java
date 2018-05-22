@@ -44,6 +44,8 @@ public abstract class Node extends AbstractActor {
             }
         }
     }
+    
+    public abstract void onDataMessage(DataMessage msg);
 
     protected void multicast(Serializable m) {
         List<ActorRef> shuffledGroup = new ArrayList<>(participants);
