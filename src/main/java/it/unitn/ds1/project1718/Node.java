@@ -11,11 +11,12 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.Set;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public abstract class Node extends AbstractActor {
     protected int id;
     protected List<ActorRef> participants;
-    protected Set<Serializable> unstableMessages = new Set<>();
+    protected Set<Serializable> unstableMessages = new HashSet<>();
     protected HashMap<List<ActorRef>,List<ActorRef>> receivedFlush = new HashMap<>();
 
     protected Random rnd = new Random();
@@ -71,7 +72,7 @@ public abstract class Node extends AbstractActor {
 
     public void onViewChangeMessage(ViewChangeMessage msg){
         sendAllUnstableMessages();
-        multicast(new FlushMessage(participants),participants);
+        multicastToView(new FlushMessage(participants),participants);
     }
 
     protected void sendAllUnstableMessages(){
