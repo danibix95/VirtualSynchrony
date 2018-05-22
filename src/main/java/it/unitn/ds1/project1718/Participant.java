@@ -25,7 +25,6 @@ public class Participant extends Node {
         .match(FlushMessage.class, this::onFlushMessage)
         .match(UnstableSharingMessage.class, this::onUnstableSharingMessage)
         .match(StableMessage.class, this::onStableMessage)
-        .match(JoinMessage.class, this::onJoinMessage)
         .build();
     }
 

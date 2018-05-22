@@ -26,6 +26,16 @@ public abstract class Node extends AbstractActor {
         this.id = id;
     }
 
+    public static class View {
+        public final int id;
+        public List<ActorRef> members;
+
+        public View(int id,List<ActorRef> members){
+            this.id = id;
+            this members = members;
+        }
+    }
+
     void setGroup(StartMessage sm) {
         participants = new ArrayList<ActorRef>();
         for (ActorRef actor: sm.groupMembers) {
@@ -73,6 +83,7 @@ public abstract class Node extends AbstractActor {
     public void onViewChangeMessage(ViewChangeMessage msg){
         sendAllUnstableMessages();
         multicastToView(new FlushMessage(participants),participants);
+        getSelf().tell(new FlushMessage(participants),getSelf());
     }
 
     protected void sendAllUnstableMessages(){
