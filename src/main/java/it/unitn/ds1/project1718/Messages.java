@@ -15,4 +15,11 @@ public class Messages {
                 Collections.unmodifiableList(new ArrayList<ActorRef>(group));
         }
     }
+
+    public static class DataMessage implements Serializable {}
+    public static class ViewChangeMessage implements Serializable {}
+    public static class FlushMessage implements Serializable {}
+    public static class UnstableSharingMessage implements Serializable {}
+    public static class StableMessage implements Serializable {}
+    public static class JoinMessage implements Serializable {}
 }
