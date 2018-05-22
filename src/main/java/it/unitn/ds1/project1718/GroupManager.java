@@ -27,7 +27,6 @@ public class GroupManager extends Node {
             .match(DataMessage.class, this::onDataMessage)
             .match(TimeoutMessage.class, this::onTimeout)
             .match(JoinMessage.class, this::onJoinMessage)
-            .match(FlushMessage.class, this::onFlushMessage)
             .build();
     }
 
