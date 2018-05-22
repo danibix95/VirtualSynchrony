@@ -22,8 +22,20 @@ public class Messages {
             this.id = id;
         }
     }
-    public static class ViewChangeMessage implements Serializable {}
-    public static class FlushMessage implements Serializable {}
+    public static class ViewChangeMessage implements Serializable {
+		public final List<ActorRef> viewMembers;
+        public StartMessage(List<ActorRef> view) {
+            this.viewMembers =
+                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+        }    	
+    }
+    public static class FlushMessage implements Serializable {
+    	public final List<ActorRef> view;
+        public StartMessage(List<ActorRef> view) {
+            this.view =
+                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+        }
+    }
     public static class UnstableSharingMessage implements Serializable {}
     public static class StableMessage implements Serializable {}
     public static class JoinMessage implements Serializable {}
