@@ -4,6 +4,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import it.unitn.ds1.project1718.Messages.StartMessage;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
@@ -13,7 +14,7 @@ public abstract class Node extends AbstractActor {
     protected int id;
     protected List<ActorRef> participants;
 
-    protected rnd = new Random();
+    protected Random rnd = new Random();
 
     public Node(int id) {
         super();

@@ -16,10 +16,22 @@ public class Messages {
         }
     }
 
-    public static class DataMessage implements Serializable {}
+    public static class DataMessage implements Serializable {
+        public final int id;
+        public DataMessage(int id) {
+            this.id = id;
+        }
+    }
     public static class ViewChangeMessage implements Serializable {}
     public static class FlushMessage implements Serializable {}
     public static class UnstableSharingMessage implements Serializable {}
     public static class StableMessage implements Serializable {}
     public static class JoinMessage implements Serializable {}
+
+    public static class TimeoutMessage implements Serializable {
+        public final int checkId;
+        public TimeoutMessage(int id) {
+            this.checkId = id;
+        }
+    }
 }
