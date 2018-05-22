@@ -48,18 +48,7 @@ public abstract class Node extends AbstractActor {
     public abstract void onDataMessage(DataMessage msg);
 
     protected void multicast(Serializable m) {
-        List<ActorRef> shuffledGroup = new ArrayList<>(participants);
-        Collections.shuffle(shuffledGroup);
-        for(ActorRef p:shuffledGroup){
-            if(!p.equals(getSelf())) {
-                p.tell(m,getSelf());
-                try {
-                    Thread.sleep(rnd.nextInt(10));
-                } catch (InterruptedException e){
-                    e.printStackTrace();
-                }
-            }
-        }
+        multicastToView(m,participants);
     }
 
     protected void multicastToView(Serializable m,List<ActorRef> view) {
