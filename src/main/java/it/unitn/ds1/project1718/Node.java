@@ -32,7 +32,7 @@ public abstract class Node extends AbstractActor {
 
         public View(int id,List<ActorRef> members){
             this.id = id;
-            this members = members;
+            this.members = members;
         }
     }
 
@@ -83,7 +83,7 @@ public abstract class Node extends AbstractActor {
     }
 
     public void onViewChangeMessage(ViewChangeMessage msg){
-        sendAllUnstableMessages();
+        sendAllUnstableMessages(); // TODO: send unstable to the new view
         multicastToView(new FlushMessage(participants),participants);
         getSelf().tell(new FlushMessage(participants),getSelf());
     }
