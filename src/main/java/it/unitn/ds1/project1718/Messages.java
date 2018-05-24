@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import it.unitn.ds1.project1718.Node.View;
+
 public class Messages {
     public static class StartMessage implements Serializable {
         public final List<ActorRef> groupMembers;
@@ -24,10 +26,9 @@ public class Messages {
     }
 
     public static class ViewChangeMessage implements Serializable {
-		public final List<ActorRef> viewMembers;
-        public ViewChangeMessage(List<ActorRef> view) {
-            this.viewMembers =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+		public final View view;
+        public ViewChangeMessage(View view) {
+            this.view = view;
         }    	
     }
 

@@ -37,12 +37,10 @@ public abstract class Node extends AbstractActor {
 
         @Override
         public boolean equals(Object o) {
-            if(! o instanceof View) {
-                return false;
+            if(o instanceof View) {
+                return ((View)o).id == this.id;
             }
-            else {
-                return (View)o.id == this.id;
-            }
+            return false;
         }
 
         @Override
@@ -51,14 +49,14 @@ public abstract class Node extends AbstractActor {
         }
     }
 
-    void setGroup(StartMessage sm) {
-        participants = new ArrayList<ActorRef>();
-        for (ActorRef actor : sm.groupMembers) {
-            if (!actor.equals(getSelf())) {
-                this.participants.add(actor);
-            }
-        }
-    }
+//    void setGroup(StartMessage sm) {
+//        participants = new ArrayList<ActorRef>();
+//        for (ActorRef actor : sm.groupMembers) {
+//            if (!actor.equals(getSelf())) {
+//                this.participants.add(actor);
+//            }
+//        }
+//    }
     
     public abstract void onDataMessage(DataMessage msg);
 
@@ -66,7 +64,7 @@ public abstract class Node extends AbstractActor {
         multicastToView(m, participants);
     }
 
-    protected void multicastToView(Serializable m, List<ActorRef> view) {
+    protected void multicastToView(Serializable m, View view) {
         List<ActorRef> shuffledGroup = new ArrayList<>(view.members);
         Collections.shuffle(shuffledGroup);
         for (ActorRef p:shuffledGroup) {
