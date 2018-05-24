@@ -9,19 +9,24 @@ import java.util.List;
 
 import it.unitn.ds1.project1718.Node.View;
 
+import javax.xml.crypto.Data;
+
 public class Messages {
-    public static class StartMessage implements Serializable {
-        public final List<ActorRef> groupMembers;
-        public StartMessage(List<ActorRef> group) {
-            this.groupMembers =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(group));
-        }
-    }
 
     public static class DataMessage implements Serializable {
         public final int id;
-        public DataMessage(int id) {
+        public final ActorRef originalSender;
+        public DataMessage(int id,ActorRef originalSender) {
             this.id = id;
+            this.originalSender = originalSender;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if(o instanceof  DataMessage) {
+                return ((DataMessage)o).id == this.id && ((DataMessage)o).originalSender == this.originalSender;
+            }
+            return false;
         }
     }
 
@@ -40,7 +45,12 @@ public class Messages {
     }
 
     public static class UnstableSharingMessage implements Serializable {}
-    public static class StableMessage implements Serializable {}
+    public static class StableMessage implements Serializable {
+        public final int messageID;
+        public StableMessage(int messageID) {
+            this.messageID = messageID;
+        }
+    }
     public static class JoinMessage implements Serializable {}
 
     public static class TimeoutMessage implements Serializable {
@@ -49,4 +59,6 @@ public class Messages {
             this.checkId = id;
         }
     }
+
+    public static class SendDataMessage implements Serializable {}
 }

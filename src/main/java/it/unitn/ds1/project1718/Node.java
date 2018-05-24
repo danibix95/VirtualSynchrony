@@ -16,8 +16,9 @@ import java.util.HashSet;
 public abstract class Node extends AbstractActor {
     protected int id;
     protected View participants;
-    protected Set<Serializable> unstableMessages = new HashSet<>();
+    protected Set<DataMessage> unstableMessages = new HashSet<>();
     protected HashMap<View,List<ActorRef>> receivedFlush = new HashMap<>();
+    protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
 
     protected Random rnd = new Random();
 
@@ -32,7 +33,7 @@ public abstract class Node extends AbstractActor {
 
         public View(int id, List<ActorRef> members) {
             this.id = id;
-            this.members = members;
+            this.members = Collections.unmodifiableList(members);
         }
 
         @Override
@@ -57,8 +58,6 @@ public abstract class Node extends AbstractActor {
 //            }
 //        }
 //    }
-    
-    public abstract void onDataMessage(DataMessage msg);
 
     protected void multicast(Serializable m) {
         multicastToView(m, participants);
@@ -86,15 +85,40 @@ public abstract class Node extends AbstractActor {
     }
 
     public void onViewChangeMessage(ViewChangeMessage msg){
-        sendAllUnstableMessages(); // TODO: send unstable to the new view
+        sendAllUnstableMessages(msg.view);
         multicastToView(new FlushMessage(msg.view), msg.view);
         getSelf().tell(new FlushMessage(msg.view), getSelf());
     }
 
-    protected void sendAllUnstableMessages() {
+    protected void sendAllUnstableMessages(View newView) {
         for (Serializable m : unstableMessages) {
-            multicast(m);
+            multicastToView(m,newView);
         }
+    }
+
+    public void onFlushMessage(FlushMessage msg) {
+        View view = msg.view;
+        if (!receivedFlush.containsKey(view)) {
+            receivedFlush.put(view, new ArrayList<ActorRef>());
+        }
+        receivedFlush.get(view).add(getSender());
+        if (receivedFlush.get(view).containsAll(view.members)) {
+            // install new view
+            participants = view;
+            receivedFlush.remove(view);
+        }
+    }
+
+    protected void onDataMessage(DataMessage msg) {
+        if(!this.receivedMessages.containsKey(participants)) {
+            this.receivedMessages.put(participants,new ArrayList<>());
+        }
+        this.receivedMessages.get(participants).add(msg);
+        this.unstableMessages.add(msg);
+    }
+
+    protected void onStableMessage(StableMessage msg) {
+        this.unstableMessages.remove(new DataMessage(msg.messageID,getSender()));
     }
 
 }
