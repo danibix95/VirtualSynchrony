@@ -83,4 +83,14 @@ public abstract class Node extends AbstractActor {
             multicast(m);
         }
     }
+
+    public static class View {
+        public final int id;
+        public List<ActorRef> members;
+
+        public View(id,members) {
+            this.id = id;
+            this.members = members;
+        }
+    }
 }
