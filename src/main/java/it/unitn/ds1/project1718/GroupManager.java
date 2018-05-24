@@ -59,7 +59,7 @@ public class GroupManager extends Node {
             multicast(new ViewChangeMessage(
                 participants.stream().filter((node) -> node.equals(sender))
                             .collect(Collectors.toList())
-            ));
+            ));// use View class instead of the list of participants
         }
     }
 

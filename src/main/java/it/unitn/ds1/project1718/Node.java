@@ -15,9 +15,9 @@ import java.util.HashSet;
 
 public abstract class Node extends AbstractActor {
     protected int id;
-    protected List<ActorRef> participants;
+    protected View participants;
     protected Set<Serializable> unstableMessages = new HashSet<>();
-    protected HashMap<List<ActorRef>,List<ActorRef>> receivedFlush = new HashMap<>();
+    protected HashMap<View,List<ActorRef>> receivedFlush = new HashMap<>();
 
     protected Random rnd = new Random();
 
@@ -28,11 +28,26 @@ public abstract class Node extends AbstractActor {
 
     public static class View {
         public final int id;
-        public List<ActorRef> members;
+        public final List<ActorRef> members;
 
         public View(int id, List<ActorRef> members) {
             this.id = id;
             this.members = members;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if(! o instanceof View) {
+                return false;
+            }
+            else {
+                return (View)o.id == this.id;
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return this.id;
         }
     }
 
@@ -52,7 +67,7 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void multicastToView(Serializable m, List<ActorRef> view) {
-        List<ActorRef> shuffledGroup = new ArrayList<>(view);
+        List<ActorRef> shuffledGroup = new ArrayList<>(view.members);
         Collections.shuffle(shuffledGroup);
         for (ActorRef p:shuffledGroup) {
             if (!p.equals(getSelf())) {
@@ -74,8 +89,8 @@ public abstract class Node extends AbstractActor {
 
     public void onViewChangeMessage(ViewChangeMessage msg){
         sendAllUnstableMessages(); // TODO: send unstable to the new view
-        multicastToView(new FlushMessage(participants), participants);
-        getSelf().tell(new FlushMessage(participants), getSelf());
+        multicastToView(new FlushMessage(msg.view), msg.view);
+        getSelf().tell(new FlushMessage(msg.view), getSelf());
     }
 
     protected void sendAllUnstableMessages() {
@@ -84,13 +99,4 @@ public abstract class Node extends AbstractActor {
         }
     }
 
-    public static class View {
-        public final int id;
-        public List<ActorRef> members;
-
-        public View(id,members) {
-            this.id = id;
-            this.members = members;
-        }
-    }
 }

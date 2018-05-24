@@ -32,10 +32,9 @@ public class Messages {
     }
 
     public static class FlushMessage implements Serializable {
-    	public final List<ActorRef> view;
-        public FlushMessage(List<ActorRef> view) {
-            this.view =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+    	public final View view;
+        public FlushMessage(View view) {
+            this.view = view;           
         }
     }
 

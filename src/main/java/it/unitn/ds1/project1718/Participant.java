@@ -33,14 +33,14 @@ public class Participant extends Node {
     }
 
     public void onFlushMessage(FlushMessage msg) {
-    	List<ActorRef> view = msg.view;
+    	View view = msg.view;
     	if (!receivedFlush.containsKey(view)) {
     		receivedFlush.put(view, new ArrayList<ActorRef>());
     	}
     	receivedFlush.get(view).add(getSender());
     	if (receivedFlush.get(view).containsAll(view)) {
     		// install new view 
-    		participants = view;
+    		participants = view.members;
     		receivedFlush.remove(view);
     	}
     }
