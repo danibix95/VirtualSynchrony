@@ -39,10 +39,8 @@ public class VirtualSynchrony {
             System.out.println(">>> Press ENTER to exit <<<");
             System.in.read();
             // TODO: define a menu
-
         }
-        catch (IOException ioe) {
-            system.terminate();
-        }
+        catch (IOException ioe) {}
+        system.terminate();
     }
 }

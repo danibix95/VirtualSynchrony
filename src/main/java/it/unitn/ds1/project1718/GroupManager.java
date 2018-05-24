@@ -16,6 +16,7 @@ public class GroupManager extends Node {
 
     public GroupManager() {
         super(0);
+        participants = new View(0, new ArrayList<>());
     }
 
     static public Props props() {
@@ -41,17 +42,15 @@ public class GroupManager extends Node {
             getSelf()
         );
     }
-
-    @Override
+    
     protected void onDataMessage(DataMessage msg) {
-        super();
+        super.onDataMessage(msg);
         lastMessages.put(getSender(), msg.id);
         scheduleTimeout(MULTICAST_TIMEOUT, msg.id);
     }
 
-    @Override
     protected void onStableMessage(StableMessage msg) {
-        super();
+        super.onStableMessage(msg);
         lastMessages.put(getSender(), msg.messageID);
         scheduleTimeout(MULTICAST_TIMEOUT, msg.messageID);
     }
