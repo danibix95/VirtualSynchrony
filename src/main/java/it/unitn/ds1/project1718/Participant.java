@@ -1,6 +1,8 @@
 package it.unitn.ds1.project1718;
 
 import it.unitn.ds1.project1718.Messages.*;
+
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -9,8 +11,13 @@ import akka.actor.Props;
 
 public class Participant extends Node {
 
+    private int messageID;
+    private final int MAX_DELAY_BETWEEN_MSG = 1000;
+    private final int MIN_DELAY_BETWEEN_MSG = 300;
+
     public Participant(int id) {
         super(id);
+        messageID = 0;
     }
 
     public static Props props(int id) {
@@ -25,31 +32,36 @@ public class Participant extends Node {
         .match(FlushMessage.class, this::onFlushMessage)
         .match(UnstableSharingMessage.class, this::onUnstableSharingMessage)
         .match(StableMessage.class, this::onStableMessage)
+        .match(SendDataMessage.class, this::onSendDataMessage)
         .build();
     }
 
-    public void onDataMessage(DataMessage msg) {
+
+
+    private void onUnstableSharingMessage(UnstableSharingMessage msg) {
 
     }
 
-    public void onFlushMessage(FlushMessage msg) {
-    	View view = msg.view;
-    	if (!receivedFlush.containsKey(view)) {
-    		receivedFlush.put(view, new ArrayList<ActorRef>());
-    	}
-    	receivedFlush.get(view).add(getSender());
-    	if (receivedFlush.get(view).containsAll(view)) {
-    		// install new view 
-    		participants = view.members;
-    		receivedFlush.remove(view);
-    	}
+    private void onSendDataMessage(SendDataMessage msg) {
+        DataMessage dataMessage = new DataMessage(messageID,getSelf());
+        multicast(dataMessage);
+        multicast(new StableMessage(dataMessage.id));
+        messageID++;
+        waitIntervalToSend();
     }
 
-    public void onUnstableSharingMessage(UnstableSharingMessage msg) {
-
+    private int randomWatingTime() {
+        return rnd.nextInt(MAX_DELAY_BETWEEN_MSG-MIN_DELAY_BETWEEN_MSG)+MIN_DELAY_BETWEEN_MSG;
     }
 
-    public void onStableMessage(StableMessage msg) {
-
+    private void waitIntervalToSend() {
+        int waitingTime = randomWatingTime();
+        getContext().system().scheduler().scheduleOnce(
+                Duration.ofMillis(waitingTime),
+                getSelf(),
+                new SendDataMessage(),
+                getContext().system().dispatcher(),
+                getSelf()
+        );
     }
 }
