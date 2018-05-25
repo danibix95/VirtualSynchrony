@@ -1,46 +1,62 @@
 package it.unitn.ds1.project1718;
 
 import akka.actor.ActorRef;
+import it.unitn.ds1.project1718.Node.View;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 
 public class Messages {
     public static class StartMessage implements Serializable {
-        public final List<ActorRef> groupMembers;
-        public StartMessage(List<ActorRef> group) {
-            this.groupMembers =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(group));
+        public final View view;
+        public StartMessage(ActorRef groupManager) {
+            this.view = new View(0, Collections.singletonList(groupManager));
         }
     }
 
     public static class DataMessage implements Serializable {
         public final int id;
-        public DataMessage(int id) {
+        public final int originalSender;
+        public DataMessage(int id, int originalSender) {
             this.id = id;
+            this.originalSender = originalSender;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof  DataMessage) {
+                return ((DataMessage)o).id == this.id
+                    && ((DataMessage)o).originalSender == this.originalSender;
+            }
+            return false;
         }
     }
 
     public static class ViewChangeMessage implements Serializable {
-		public final List<ActorRef> viewMembers;
-        public ViewChangeMessage(List<ActorRef> view) {
-            this.viewMembers =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+		public final View view;
+        public ViewChangeMessage(View view) {
+            this.view = view;
         }    	
     }
 
     public static class FlushMessage implements Serializable {
-    	public final List<ActorRef> view;
-        public FlushMessage(List<ActorRef> view) {
-            this.view =
-                Collections.unmodifiableList(new ArrayList<ActorRef>(view));
+    	public final View view;
+        public FlushMessage(View view) {
+            this.view = view;           
         }
     }
 
     public static class UnstableSharingMessage implements Serializable {}
-    public static class StableMessage implements Serializable {}
+
+    public static class StableMessage implements Serializable {
+        public final int messageID;
+        public final int senderID;
+        public StableMessage(int messageID, int senderID) {
+            this.messageID = messageID;
+            this.senderID = senderID;
+        }
+    }
+
     public static class JoinMessage implements Serializable {}
 
     public static class TimeoutMessage implements Serializable {
@@ -49,4 +65,6 @@ public class Messages {
             this.checkId = id;
         }
     }
+
+    public static class SendDataMessage implements Serializable {}
 }

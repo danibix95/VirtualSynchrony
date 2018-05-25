@@ -7,10 +7,11 @@ import it.unitn.ds1.project1718.Messages.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class GroupManager extends Node {
-    private final int MULTICAST_TIMEOUT = 5000;
+    private final static int MULTICAST_TIMEOUT = 5000;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
 
     public GroupManager() {
@@ -24,13 +25,15 @@ public class GroupManager extends Node {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
+            .match(StartMessage.class, this::onStartMessage)
             .match(DataMessage.class, this::onDataMessage)
+            .match(StableMessage.class, this::onStableMessage)
             .match(TimeoutMessage.class, this::onTimeout)
             .match(JoinMessage.class, this::onJoinMessage)
             .build();
     }
 
-    void scheduleTimeout(int time, int messageId) {
+    private void scheduleTimeout(int time, int messageId) {
         getContext().system().scheduler().scheduleOnce(
             Duration.ofMillis(time),
             getSelf(),
@@ -39,34 +42,42 @@ public class GroupManager extends Node {
             getSelf()
         );
     }
-//
-//    public void onStartMessage(StartMessage msg) {
-//        setGroup(msg);
-//        for (ActorRef actor : this.participants) {
-//            lastMessages.put(actor, -1);
-//        }
-//    }
 
-    @Override
-    public void onDataMessage(DataMessage msg) {
+    private void onStartMessage(StartMessage msg) {
+        currentView = msg.view;
+    }
+
+    protected void onDataMessage(DataMessage msg) {
+        super.onDataMessage(msg);
         lastMessages.put(getSender(), msg.id);
         scheduleTimeout(MULTICAST_TIMEOUT, msg.id);
     }
 
-    public void onTimeout(TimeoutMessage msg) {
+    protected void onStableMessage(StableMessage msg) {
+        super.onStableMessage(msg);
+        lastMessages.put(getSender(), msg.messageID);
+        scheduleTimeout(MULTICAST_TIMEOUT, msg.messageID);
+    }
+
+    private void onTimeout(TimeoutMessage msg) {
         ActorRef sender = getSender();
-        if (lastMessages.get(sender) == msg.checkId) {
-            multicast(new ViewChangeMessage(
-                participants.stream().filter((node) -> node.equals(sender))
-                            .collect(Collectors.toList())
-            ));
+        if (lastMessages.getOrDefault(sender, -1) == msg.checkId) {
+            View updatedView = new View(
+                currentView.id + 1,
+                currentView.members.stream()
+                    .filter((node) -> node.equals(sender))
+                    .collect(Collectors.toList())
+            );
+
+            multicastToView(new ViewChangeMessage(updatedView), updatedView);
         }
     }
 
-    public void onJoinMessage(JoinMessage msg) {
-        lastMessages.put(getSender(), -1);
-        ArrayList<ActorRef> newView = new ArrayList<ActorRef>(participants);
-        newView.add(getSender());
-        multicastToView(new ViewChangeMessage(newView), newView);
+    private void onJoinMessage(JoinMessage msg) {
+        List<ActorRef> updatedMembers = new ArrayList<>(currentView.members);
+        updatedMembers.add(getSender());
+
+        View updatedView = new View(currentView.id + 1, updatedMembers);
+        multicastToView(new ViewChangeMessage(updatedView), updatedView);
     }
 }
