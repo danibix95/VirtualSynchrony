@@ -16,7 +16,6 @@ public class GroupManager extends Node {
 
     public GroupManager() {
         super(0);
-        participants = new View(0, new ArrayList<>());
     }
 
     static public Props props() {
@@ -26,6 +25,7 @@ public class GroupManager extends Node {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
+            .match(StartMessage.class, this::onStartMessage)
             .match(DataMessage.class, this::onDataMessage)
             .match(StableMessage.class, this::onStableMessage)
             .match(TimeoutMessage.class, this::onTimeout)
@@ -42,7 +42,11 @@ public class GroupManager extends Node {
             getSelf()
         );
     }
-    
+
+    private void onStartMessage(StartMessage msg) {
+        currentView = msg.view;
+    }
+
     protected void onDataMessage(DataMessage msg) {
         super.onDataMessage(msg);
         lastMessages.put(getSender(), msg.id);
@@ -59,8 +63,8 @@ public class GroupManager extends Node {
         ActorRef sender = getSender();
         if (lastMessages.getOrDefault(sender, -1) == msg.checkId) {
             View updatedView = new View(
-                participants.id + 1,
-                participants.members.stream()
+                currentView.id + 1,
+                currentView.members.stream()
                     .filter((node) -> node.equals(sender))
                     .collect(Collectors.toList())
             );
@@ -70,10 +74,10 @@ public class GroupManager extends Node {
     }
 
     private void onJoinMessage(JoinMessage msg) {
-        List<ActorRef> updatedMembers = new ArrayList<>(participants.members);
+        List<ActorRef> updatedMembers = new ArrayList<>(currentView.members);
         updatedMembers.add(getSender());
 
-        View updatedView = new View(participants.id + 1, updatedMembers);
+        View updatedView = new View(currentView.id + 1, updatedMembers);
         multicastToView(new ViewChangeMessage(updatedView), updatedView);
     }
 }

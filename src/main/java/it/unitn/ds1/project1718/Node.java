@@ -5,17 +5,12 @@ import akka.actor.ActorRef;
 import it.unitn.ds1.project1718.Messages.*;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collections;
-import java.util.Random;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class Node extends AbstractActor {
     protected int id;
-    protected View participants;
+    protected View currentView;
     protected Set<DataMessage> unstableMessages = new HashSet<>();
     protected HashMap<View,List<ActorRef>> receivedFlush = new HashMap<>();
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
@@ -38,7 +33,7 @@ public abstract class Node extends AbstractActor {
 
         @Override
         public boolean equals(Object o) {
-            if(o instanceof View) {
+            if (o instanceof View) {
                 return ((View)o).id == this.id;
             }
             return false;
@@ -50,17 +45,8 @@ public abstract class Node extends AbstractActor {
         }
     }
 
-//    void setGroup(StartMessage sm) {
-//        participants = new ArrayList<ActorRef>();
-//        for (ActorRef actor : sm.groupMembers) {
-//            if (!actor.equals(getSelf())) {
-//                this.participants.add(actor);
-//            }
-//        }
-//    }
-
     protected void multicast(Serializable m) {
-        multicastToView(m, participants);
+        multicastToView(m, currentView);
     }
 
     protected void multicastToView(Serializable m, View view) {
@@ -68,7 +54,7 @@ public abstract class Node extends AbstractActor {
         Collections.shuffle(shuffledGroup);
         for (ActorRef p:shuffledGroup) {
             if (!p.equals(getSelf())) {
-                p.tell(m,getSelf());
+                p.tell(m, getSelf());
                 try {
                     Thread.sleep(rnd.nextInt(10));
                 }
@@ -79,12 +65,7 @@ public abstract class Node extends AbstractActor {
         }
     }
 
-    @Override
-    public Receive createReceive() {
-      return receiveBuilder().build();
-    }
-
-    public void onViewChangeMessage(ViewChangeMessage msg){
+    protected void onViewChangeMessage(ViewChangeMessage msg) {
         sendAllUnstableMessages(msg.view);
         multicastToView(new FlushMessage(msg.view), msg.view);
         getSelf().tell(new FlushMessage(msg.view), getSelf());
@@ -92,11 +73,11 @@ public abstract class Node extends AbstractActor {
 
     protected void sendAllUnstableMessages(View newView) {
         for (Serializable m : unstableMessages) {
-            multicastToView(m,newView);
+            multicastToView(m, newView);
         }
     }
 
-    public void onFlushMessage(FlushMessage msg) {
+    protected void onFlushMessage(FlushMessage msg) {
         View view = msg.view;
         if (!receivedFlush.containsKey(view)) {
             receivedFlush.put(view, new ArrayList<ActorRef>());
@@ -104,21 +85,36 @@ public abstract class Node extends AbstractActor {
         receivedFlush.get(view).add(getSender());
         if (receivedFlush.get(view).containsAll(view.members)) {
             // install new view
-            participants = view;
+             System.out.format(
+                "%d install view %d %s",
+                this.id,
+                view.id,
+                view.members.stream().map((m) -> m.path().name())
+                    .collect(Collectors.joining(","))
+            );
+            currentView = view;
             receivedFlush.remove(view);
         }
     }
 
     protected void onDataMessage(DataMessage msg) {
-        if(!this.receivedMessages.containsKey(participants)) {
-            this.receivedMessages.put(participants,new ArrayList<>());
+        System.out.format(
+            "%d deliver multicast %d from %d within %d",
+            this.id,
+            msg.id,
+            msg.originalSender,
+            currentView.id
+        );
+        if (!this.receivedMessages.containsKey(currentView)) {
+            this.receivedMessages.put(currentView, new ArrayList<>());
         }
-        this.receivedMessages.get(participants).add(msg);
+        this.receivedMessages.get(currentView).add(msg);
         this.unstableMessages.add(msg);
     }
 
     protected void onStableMessage(StableMessage msg) {
-        this.unstableMessages.remove(new DataMessage(msg.messageID,getSender()));
+        this.unstableMessages.remove(
+            new DataMessage(msg.messageID, msg.senderID)
+        );
     }
-
 }

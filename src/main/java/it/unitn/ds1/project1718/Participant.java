@@ -1,16 +1,11 @@
 package it.unitn.ds1.project1718;
 
+import akka.actor.Props;
 import it.unitn.ds1.project1718.Messages.*;
 
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ArrayList;
-import akka.actor.ActorRef;
-import akka.actor.Props;
 
 public class Participant extends Node {
-
     private int messageID;
     private final int MAX_DELAY_BETWEEN_MSG = 1000;
     private final int MIN_DELAY_BETWEEN_MSG = 300;
@@ -36,16 +31,16 @@ public class Participant extends Node {
         .build();
     }
 
-
-
     private void onUnstableSharingMessage(UnstableSharingMessage msg) {
 
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        DataMessage dataMessage = new DataMessage(messageID,getSelf());
+        System.out.format("%d send multicast %d within %d",
+                          this.id, this.messageID, currentView.id);
+        DataMessage dataMessage = new DataMessage(messageID, this.id);
         multicast(dataMessage);
-        multicast(new StableMessage(dataMessage.id));
+        multicast(new StableMessage(dataMessage.id, this.id));
         messageID++;
         waitIntervalToSend();
     }
@@ -55,9 +50,8 @@ public class Participant extends Node {
     }
 
     private void waitIntervalToSend() {
-        int waitingTime = randomWatingTime();
         getContext().system().scheduler().scheduleOnce(
-                Duration.ofMillis(waitingTime),
+                Duration.ofMillis(randomWatingTime()),
                 getSelf(),
                 new SendDataMessage(),
                 getContext().system().dispatcher(),

@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import it.unitn.ds1.project1718.Messages.JoinMessage;
+import it.unitn.ds1.project1718.Messages.StartMessage;
 
 public class VirtualSynchrony {
     private final static int PARTICIPANTS = 3;
@@ -18,18 +19,19 @@ public class VirtualSynchrony {
 
         ActorRef groupManager = system.actorOf(GroupManager.props(), "group-manager");
 
-        // initial ID for group participants
+        // initial ID for group currentView
         int id = 1;
-
         List<ActorRef> initialGroup = new ArrayList<>();
-        for (int i = 0; i < PARTICIPANTS; i++) {
+        for (; id <= PARTICIPANTS; id++) {
             initialGroup.add(system.actorOf(
                 Participant.props(id),
-                "participant-"+ i)
+                String.valueOf(id))
             );
-            id++;
         }
         initialGroup = Collections.unmodifiableList(initialGroup);
+
+        // insert the group manager in the initial view
+        groupManager.tell(new StartMessage(groupManager), ActorRef.noSender());
 
         for (ActorRef member : initialGroup) {
             groupManager.tell(new JoinMessage(), member);
@@ -38,7 +40,6 @@ public class VirtualSynchrony {
         try {
             System.out.println(">>> Press ENTER to exit <<<");
             System.in.read();
-            // TODO: define a menu
         }
         catch (IOException ioe) {}
         system.terminate();

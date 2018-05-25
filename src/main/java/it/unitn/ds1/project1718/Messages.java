@@ -1,30 +1,32 @@
 package it.unitn.ds1.project1718;
 
 import akka.actor.ActorRef;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import it.unitn.ds1.project1718.Node.View;
 
-import javax.xml.crypto.Data;
+import java.io.Serializable;
+import java.util.Collections;
 
 public class Messages {
+    public static class StartMessage implements Serializable {
+        public final View view;
+        public StartMessage(ActorRef groupManager) {
+            this.view = new View(0, Collections.singletonList(groupManager));
+        }
+    }
 
     public static class DataMessage implements Serializable {
         public final int id;
-        public final ActorRef originalSender;
-        public DataMessage(int id,ActorRef originalSender) {
+        public final int originalSender;
+        public DataMessage(int id, int originalSender) {
             this.id = id;
             this.originalSender = originalSender;
         }
 
         @Override
         public boolean equals(Object o) {
-            if(o instanceof  DataMessage) {
-                return ((DataMessage)o).id == this.id && ((DataMessage)o).originalSender == this.originalSender;
+            if (o instanceof  DataMessage) {
+                return ((DataMessage)o).id == this.id
+                    && ((DataMessage)o).originalSender == this.originalSender;
             }
             return false;
         }
@@ -45,12 +47,16 @@ public class Messages {
     }
 
     public static class UnstableSharingMessage implements Serializable {}
+
     public static class StableMessage implements Serializable {
         public final int messageID;
-        public StableMessage(int messageID) {
+        public final int senderID;
+        public StableMessage(int messageID, int senderID) {
             this.messageID = messageID;
+            this.senderID = senderID;
         }
     }
+
     public static class JoinMessage implements Serializable {}
 
     public static class TimeoutMessage implements Serializable {
