@@ -9,10 +9,12 @@ public class Participant extends Node {
     private int messageID;
     private final int MAX_DELAY_BETWEEN_MSG = 1000;
     private final int MIN_DELAY_BETWEEN_MSG = 300;
+    private boolean justEntered;
 
     public Participant(int id) {
         super(id);
         messageID = 0;
+        justEntered = true;
     }
 
     public static Props props(int id) {
@@ -25,14 +27,24 @@ public class Participant extends Node {
         .match(DataMessage.class, this::onDataMessage)
         .match(ViewChangeMessage.class, this::onViewChangeMessage)
         .match(FlushMessage.class, this::onFlushMessage)
-        .match(UnstableSharingMessage.class, this::onUnstableSharingMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
         .build();
     }
 
-    private void onUnstableSharingMessage(UnstableSharingMessage msg) {
-
+    protected boolean onFlushMessage(FlushMessage msg){
+        boolean viewHasChanged = super.onFlushMessage(msg);
+        if(viewHasChanged) {
+            justEntered = false;
+            return true;
+        }
+        return false;
+    }
+    
+    protected void onDataMessage(DataMessage msg) {
+        if(!justEntered) {
+            super.onDataMessage(msg);
+        }
     }
 
     private void onSendDataMessage(SendDataMessage msg) {

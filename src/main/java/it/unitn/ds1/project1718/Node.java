@@ -77,7 +77,7 @@ public abstract class Node extends AbstractActor {
         }
     }
 
-    protected void onFlushMessage(FlushMessage msg) {
+    protected boolean onFlushMessage(FlushMessage msg) {
         View view = msg.view;
         if (!receivedFlush.containsKey(view)) {
             receivedFlush.put(view, new ArrayList<ActorRef>());
@@ -94,7 +94,9 @@ public abstract class Node extends AbstractActor {
             );
             currentView = view;
             receivedFlush.remove(view);
+            return true;
         }
+        return false;
     }
 
     protected void onDataMessage(DataMessage msg) {

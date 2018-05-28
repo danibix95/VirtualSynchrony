@@ -46,8 +46,6 @@ public class Messages {
         }
     }
 
-    public static class UnstableSharingMessage implements Serializable {}
-
     public static class StableMessage implements Serializable {
         public final int messageID;
         public final int senderID;
