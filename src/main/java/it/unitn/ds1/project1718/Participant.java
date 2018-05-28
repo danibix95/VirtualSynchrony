@@ -10,11 +10,13 @@ public class Participant extends Node {
     private final int MAX_DELAY_BETWEEN_MSG = 1000;
     private final int MIN_DELAY_BETWEEN_MSG = 300;
     private boolean justEntered;
+    private boolean allowSending;
 
     public Participant() {
         super();
-        messageID = -1;
-        justEntered = true;
+        this.messageID = 0;
+        this.justEntered = true;
+        this.allowSending = false;
     }
 
     public static Props props() {
@@ -37,29 +39,40 @@ public class Participant extends Node {
         this.id = msg.newID;
     }
 
+    @Override
     protected boolean onFlushMessage(FlushMessage msg){
-        boolean viewHasChanged = super.onFlushMessage(msg);
-        if(viewHasChanged) {
-            justEntered = false;
+        boolean viewInstalled = super.onFlushMessage(msg);
+        if(viewInstalled) {
+            this.justEntered = false;
+            this.allowSending = true;
             return true;
         }
         return false;
     }
-    
+
+    @Override
     protected void onDataMessage(DataMessage msg) {
         if(!justEntered) {
             super.onDataMessage(msg);
         }
     }
 
+    @Override
+    protected void onViewChangeMessage(ViewChangeMessage msg) {
+        this.allowSending = false;
+        super.onViewChangeMessage(msg);
+    }
+
     private void onSendDataMessage(SendDataMessage msg) {
-        System.out.format("%d send multicast %d within %d\n",
-                          this.id, this.messageID, currentView.id);
-        DataMessage dataMessage = new DataMessage(messageID, this.id);
-        multicast(dataMessage);
-        multicast(new StableMessage(dataMessage.id, this.id));
-        messageID++;
-        waitIntervalToSend();
+        if(this.allowSending){
+            System.out.format("%d send multicast %d within %d\n",
+                this.id, this.messageID, currentView.id);
+            DataMessage dataMessage = new DataMessage(messageID, this.id);
+            multicast(dataMessage);
+            multicast(new StableMessage(dataMessage.id, this.id));
+            this.messageID++;
+            waitIntervalToSend();
+        }
     }
 
     private int randomWatingTime() {

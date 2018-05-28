@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
 public abstract class Node extends AbstractActor {
     protected int id;
     protected View currentView;
-    protected Set<DataMessage> unstableMessages = new HashSet<>();
-    protected HashMap<View,List<ActorRef>> receivedFlush = new HashMap<>();
+    protected HashMap<View,List<DataMessage>> unstableMessages = new HashMap<>();
+    protected TreeMap<View,List<ActorRef>> receivedFlush = new TreeMap<>();
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
 
     protected Random rnd = new Random();
@@ -21,7 +21,7 @@ public abstract class Node extends AbstractActor {
         super();
     }
 
-    public static class View {
+    public static class View implements Comparable<View>{
         public final int id;
         public final List<ActorRef> members;
 
@@ -41,6 +41,11 @@ public abstract class Node extends AbstractActor {
         @Override
         public int hashCode() {
             return this.id;
+        }
+
+        @Override
+        public int compareTo(View v) {
+            return this.id - v.id;
         }
     }
 
@@ -64,35 +69,51 @@ public abstract class Node extends AbstractActor {
         }
     }
 
+    private View getPreviousView(View v) {
+        return new View(v.id-1,new ArrayList<>());
+    }
+
     protected void onViewChangeMessage(ViewChangeMessage msg) {
-        sendAllUnstableMessages(msg.view);
+        View previousView = getPreviousView(msg.view);
+        if(unstableMessages.containsKey(previousView)) {
+            sendAllUnstableMessages(unstableMessages.get(previousView), msg.view);
+        }
         multicastToView(new FlushMessage(msg.view), msg.view);
         getSelf().tell(new FlushMessage(msg.view), getSelf());
     }
 
-    protected void sendAllUnstableMessages(View newView) {
-        for (Serializable m : unstableMessages) {
-            multicastToView(m, newView);
+    protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
+        for (Serializable m: messages) {
+            multicastToView(m,view);
         }
     }
 
     protected boolean onFlushMessage(FlushMessage msg) {
         View view = msg.view;
         if (!receivedFlush.containsKey(view)) {
-            receivedFlush.put(view, new ArrayList<ActorRef>());
+            receivedFlush.put(view, new ArrayList<>());
         }
         receivedFlush.get(view).add(getSender());
         if (receivedFlush.get(view).containsAll(view.members)) {
             // install new view
-             System.out.format(
-                "%d install view %d %s\n",
-                this.id,
-                view.id,
-                view.members.stream().map((m) -> m.path().name())
-                    .collect(Collectors.joining(","))
-            );
-            currentView = view;
-            receivedFlush.remove(view);
+            Iterator<Map.Entry<View,List<ActorRef>>> iter = receivedFlush.entrySet().iterator();
+            while (iter.hasNext()) {
+                View v = iter.next().getKey();
+                // install all the "open" views up to the completely installed one
+                if (v.compareTo(view)<=0) {
+                    System.out.format(
+                            "%d install view %d %s\n",
+                            this.id,
+                            v.id,
+                            v.members.stream().map((m) -> m.path().name())
+                                    .collect(Collectors.joining(","))
+                    );
+                    currentView = v;
+                    receivedFlush.remove(v);
+                    unstableMessages.remove(v);
+                }
+                else break;
+            }
             return true;
         }
         return false;
@@ -110,7 +131,10 @@ public abstract class Node extends AbstractActor {
             this.receivedMessages.put(currentView, new ArrayList<>());
         }
         this.receivedMessages.get(currentView).add(msg);
-        this.unstableMessages.add(msg);
+        if(!this.unstableMessages.containsKey(currentView)){
+            this.unstableMessages.put(currentView,new ArrayList<>());
+        }
+        this.unstableMessages.get(currentView).add(msg);
     }
 
     protected void onStableMessage(StableMessage msg) {
