@@ -17,9 +17,8 @@ public abstract class Node extends AbstractActor {
 
     protected Random rnd = new Random();
 
-    public Node(int id) {
+    public Node() {
         super();
-        this.id = id;
     }
 
     public static class View {

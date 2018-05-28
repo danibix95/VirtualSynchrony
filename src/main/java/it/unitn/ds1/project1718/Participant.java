@@ -11,25 +11,30 @@ public class Participant extends Node {
     private final int MIN_DELAY_BETWEEN_MSG = 300;
     private boolean justEntered;
 
-    public Participant(int id) {
-        super(id);
-        messageID = 0;
+    public Participant() {
+        super();
+        messageID = -1;
         justEntered = true;
     }
 
-    public static Props props(int id) {
-    	return Props.create(Participant.class, () -> new Participant(id));
+    public static Props props() {
+    	return Props.create(Participant.class, Participant::new);
     }
 
     @Override
     public Receive createReceive() {
       return receiveBuilder()
+        .match(AssignIDMessage.class, this::onAssignIDMessage)
         .match(DataMessage.class, this::onDataMessage)
         .match(ViewChangeMessage.class, this::onViewChangeMessage)
         .match(FlushMessage.class, this::onFlushMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
         .build();
+    }
+
+    protected void onAssignIDMessage(AssignIDMessage msg) {
+        this.id = msg.newID;
     }
 
     protected boolean onFlushMessage(FlushMessage msg){

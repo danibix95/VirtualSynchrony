@@ -14,6 +14,13 @@ public class Messages {
         }
     }
 
+    public static class AssignIDMessage implements Serializable {
+        public final int newID;
+        public AssignIDMessage(int newID) {
+            this.newID = newID;
+        }
+    }
+
     public static class DataMessage implements Serializable {
         public final int id;
         public final int senderID;
@@ -57,12 +64,26 @@ public class Messages {
 
     public static class JoinMessage implements Serializable {}
 
-    public static class TimeoutMessage implements Serializable {
+    public static abstract class Timeout implements Serializable {
+        public final ActorRef senderID;
+        public Timeout(ActorRef senderID) {
+            this.senderID = senderID;
+        }
+    }
+
+    public static class TimeoutMessage extends Timeout {
         public final int checkID;
-        public final int senderID;
-        public TimeoutMessage(int id, int messageSender) {
+        public TimeoutMessage(int id, ActorRef messageSender) {
+            super(messageSender);
             this.checkID = id;
-            this.senderID = messageSender;
+        }
+    }
+
+    public static class FlushTimeoutMessage extends Timeout {
+        public final View view;
+        public FlushTimeoutMessage (View view, ActorRef messageSender) {
+            super(messageSender);
+            this.view = view;
         }
     }
 

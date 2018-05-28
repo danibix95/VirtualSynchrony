@@ -17,15 +17,15 @@ public class VirtualSynchrony {
     public static void main(String[] args) {
         final ActorSystem system = ActorSystem.create("virtual-synchrony");
 
-        ActorRef groupManager = system.actorOf(GroupManager.props(), "group-manager");
+        ActorRef groupManager = system.actorOf(GroupManager.props(), "0");
 
         // initial ID for group currentView
         int id = 1;
         List<ActorRef> initialGroup = new ArrayList<>();
         for (; id <= PARTICIPANTS; id++) {
             initialGroup.add(system.actorOf(
-                Participant.props(id),
-                String.valueOf(id))
+                Participant.props(),
+                String.valueOf("node-" + id))
             );
         }
         initialGroup = Collections.unmodifiableList(initialGroup);
