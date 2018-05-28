@@ -86,7 +86,7 @@ public abstract class Node extends AbstractActor {
         if (receivedFlush.get(view).containsAll(view.members)) {
             // install new view
              System.out.format(
-                "%d install view %d %s",
+                "%d install view %d %s\n",
                 this.id,
                 view.id,
                 view.members.stream().map((m) -> m.path().name())
@@ -99,10 +99,10 @@ public abstract class Node extends AbstractActor {
 
     protected void onDataMessage(DataMessage msg) {
         System.out.format(
-            "%d deliver multicast %d from %d within %d",
+            "%d deliver multicast %d from %d within %d\n",
             this.id,
             msg.id,
-            msg.originalSender,
+            msg.senderID,
             currentView.id
         );
         if (!this.receivedMessages.containsKey(currentView)) {

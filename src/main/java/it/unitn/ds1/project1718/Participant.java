@@ -36,7 +36,7 @@ public class Participant extends Node {
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        System.out.format("%d send multicast %d within %d",
+        System.out.format("%d send multicast %d within %d\n",
                           this.id, this.messageID, currentView.id);
         DataMessage dataMessage = new DataMessage(messageID, this.id);
         multicast(dataMessage);

@@ -38,7 +38,7 @@ public class VirtualSynchrony {
         }
 
         try {
-            System.out.println(">>> Press ENTER to exit <<<");
+            System.out.println("\n>>> Press ENTER to exit <<<\n");
             System.in.read();
         }
         catch (IOException ioe) {}
