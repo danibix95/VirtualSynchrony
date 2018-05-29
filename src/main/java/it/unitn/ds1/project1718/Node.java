@@ -4,7 +4,6 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import it.unitn.ds1.project1718.Messages.*;
 
-import javax.xml.bind.SchemaOutputResolver;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,7 +19,6 @@ public abstract class Node extends AbstractActor {
 
     public Node() {
         super();
-        currentView = new View(-1,new ArrayList<>());
     }
 
     public static class View implements Comparable<View>{
@@ -92,8 +90,8 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
-        for (Serializable m: messages) {
-            multicastToView(m,view);
+        for (DataMessage m: messages) {
+            multicastToView(new A2AMessage(m.id,m.senderID),view);
         }
     }
 
@@ -150,5 +148,9 @@ public abstract class Node extends AbstractActor {
         this.unstableMessages.remove(
             new DataMessage(msg.messageID, msg.senderID)
         );
+    }
+
+    protected void onA2AMessage(A2AMessage msg){
+        receivedMessages.get(currentView).add(msg);
     }
 }

@@ -37,6 +37,7 @@ public class GroupManager extends Node {
             .match(ViewChangeMessage.class, this::onViewChangeMessage)
             .match(FlushMessage.class, this::onFlushMessage)
             .match(JoinMessage.class, this::onJoinMessage)
+            .match(A2AMessage.class, this::onA2AMessage)
             .build();
     }
 
@@ -100,7 +101,7 @@ public class GroupManager extends Node {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
                 View updatedView = new View(
                     lastViewID,
-                    msg.view.members.stream()
+                    lastGeneratedView.members.stream()
                         .filter((node) -> !node.equals(getSender()))
                         .collect(Collectors.toList())
                 );
