@@ -101,7 +101,7 @@ public abstract class Node extends AbstractActor {
             while (iter.hasNext()) {
                 View v = iter.next().getKey();
                 // install all the "open" views up to the completely installed one
-                if (v.compareTo(view)<=0) {
+                if (v.compareTo(view) <= 0) {
                     System.out.format(
                             "%d install view %d %s\n",
                             this.id,
@@ -121,6 +121,7 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onDataMessage(DataMessage msg) {
+        // TODO: introduce delay between flushed and view install
         System.out.format(
             "%d deliver multicast %d from %d within %d\n",
             this.id,
@@ -147,7 +148,7 @@ public abstract class Node extends AbstractActor {
     protected void onA2AMessage(A2AMessage msg){
         if(!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
             System.out.format(
-                    "%d deliver multicast %d from %d within %d\n",
+                    "A2A %d deliver multicast %d from %d within %d\n",
                     this.id,
                     msg.id,
                     msg.senderID,

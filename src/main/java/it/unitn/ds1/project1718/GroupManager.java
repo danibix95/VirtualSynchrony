@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class GroupManager extends Node {
     private int lastViewID = 0;
     private int lastAssignedID = 0;
-    private final static int MULTICAST_TIMEOUT = 8000;
+    private final static int MULTICAST_TIMEOUT = 6000;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
     private View lastGeneratedView;
 
@@ -64,6 +64,7 @@ public class GroupManager extends Node {
     private void onStartMessage(StartMessage msg) {
         currentView = msg.view;
         lastGeneratedView = currentView;
+        actor2id.put(getSelf(), id);
         System.out.format("Group Manager initialized with view %d\n", currentView.id);
     }
 

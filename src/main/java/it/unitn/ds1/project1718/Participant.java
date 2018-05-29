@@ -69,7 +69,7 @@ public class Participant extends Node {
 
     @Override
     protected void onDataMessage(DataMessage msg) {
-        if(!justEntered && !this.crashed) {
+        if(!this.crashed) {
             super.onDataMessage(msg);
         }
     }
@@ -83,6 +83,7 @@ public class Participant extends Node {
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
+        // TODO: if not crashed delay event
         if(this.allowSending && !this.crashed){
             System.out.format("%d send multicast %d within %d\n",
                 this.id, this.messageID, currentView.id);
@@ -112,5 +113,10 @@ public class Participant extends Node {
     private void onCrashMessage(CrashMessage msg) {
         this.crashed = true;
         System.out.format("%d Crashed!\n",this.id);
+    }
+
+    @Override
+    protected void onA2AMessage(A2AMessage msg){
+        if(!justEntered) super.onA2AMessage(msg);
     }
 }
