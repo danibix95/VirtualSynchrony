@@ -30,14 +30,14 @@ public class GroupManager extends Node {
     public Receive createReceive() {
         return receiveBuilder()
             .match(StartMessage.class, this::onStartMessage)
-            .match(DataMessage.class, this::onDataMessage)
             .match(StableMessage.class, this::onStableMessage)
             .match(TimeoutMessage.class, this::onTimeout)
             .match(FlushTimeoutMessage.class, this::onFlushTimeout)
             .match(ViewChangeMessage.class, this::onViewChangeMessage)
             .match(FlushMessage.class, this::onFlushMessage)
             .match(JoinMessage.class, this::onJoinMessage)
-            .match(A2AMessage.class, this::onA2AMessage)
+            .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
+            .match(DataMessage.class, this::onDataMessage)          // hierarchical overshadowing
             .build();
     }
 

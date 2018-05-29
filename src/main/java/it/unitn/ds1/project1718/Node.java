@@ -145,7 +145,7 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onA2AMessage(A2AMessage msg){
-        if(!receivedMessages.containsKey(msg)) {
+        if(!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
             System.out.format(
                     "%d deliver multicast %d from %d within %d\n",
                     this.id,
