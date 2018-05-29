@@ -37,6 +37,7 @@ public class GroupManager extends Node {
             .match(ViewChangeMessage.class, this::onViewChangeMessage)
             .match(FlushMessage.class, this::onFlushMessage)
             .match(JoinMessage.class, this::onJoinMessage)
+            .match(A2AMessage.class, this::onA2AMessage)
             .build();
     }
 

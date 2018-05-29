@@ -35,6 +35,7 @@ public class Participant extends Node {
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
         .match(CrashMessage.class, this::onCrashMessage)
+        .match(A2AMessage.class, this::onA2AMessage)
         .build();
     }
 

@@ -90,4 +90,11 @@ public class Messages {
     public static class SendDataMessage implements Serializable {}
 
     public static class CrashMessage implements Serializable {}
+
+    public static class A2AMessage extends DataMessage {
+        public A2AMessage(int id, int originalSender) {
+            super(id,originalSender);
+        }
+    }
+
 }
