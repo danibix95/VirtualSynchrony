@@ -11,12 +11,14 @@ public class Participant extends Node {
     private final int MIN_DELAY_BETWEEN_MSG = 300;
     private boolean justEntered;
     private boolean allowSending;
+    private boolean crashed;
 
     public Participant() {
         super();
         this.messageID = 0;
         this.justEntered = true;
         this.allowSending = false;
+        this.crashed = false;
     }
 
     public static Props props() {
@@ -41,33 +43,44 @@ public class Participant extends Node {
 
     @Override
     protected boolean onFlushMessage(FlushMessage msg){
-        boolean viewInstalled = super.onFlushMessage(msg);
-        if(viewInstalled) {
-            this.allowSending = true;
-            if(this.justEntered){
-                this.justEntered = false;
-                getSelf().tell(new SendDataMessage(),getSelf());
+        if(!this.crashed) {
+            boolean viewInstalled = super.onFlushMessage(msg);
+            if(viewInstalled) {
+                this.allowSending = true;
+                if(this.justEntered){
+                    this.justEntered = false;
+                    getSelf().tell(new SendDataMessage(),getSelf());
+                }
+                return true;
             }
-            return true;
         }
         return false;
     }
 
     @Override
+    protected void onStableMessage(StableMessage msg) {
+        if(!this.crashed) {
+            super.onStableMessage(msg);
+        }
+    }
+
+    @Override
     protected void onDataMessage(DataMessage msg) {
-        if(!justEntered) {
+        if(!justEntered && !this.crashed) {
             super.onDataMessage(msg);
         }
     }
 
     @Override
     protected void onViewChangeMessage(ViewChangeMessage msg) {
-        this.allowSending = false;
-        super.onViewChangeMessage(msg);
+        if(!this.crashed) {
+            this.allowSending = false;
+            super.onViewChangeMessage(msg);
+        }
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        if(this.allowSending){
+        if(this.allowSending && !this.crashed){
             System.out.format("%d send multicast %d within %d\n",
                 this.id, this.messageID, currentView.id);
             DataMessage dataMessage = new DataMessage(messageID, this.id);
