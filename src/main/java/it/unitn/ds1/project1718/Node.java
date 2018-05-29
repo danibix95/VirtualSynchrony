@@ -4,6 +4,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import it.unitn.ds1.project1718.Messages.*;
 
+import javax.xml.bind.SchemaOutputResolver;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ public abstract class Node extends AbstractActor {
 
     public Node() {
         super();
+        currentView = new View(-1,new ArrayList<>());
     }
 
     public static class View implements Comparable<View>{
@@ -46,6 +48,13 @@ public abstract class Node extends AbstractActor {
         @Override
         public int compareTo(View v) {
             return this.id - v.id;
+        }
+    }
+
+    public class ReverseViewComparator implements  Comparator<View> {
+        @Override
+        public int compare(View v1, View v2) {
+            return v2.id - v1.id;
         }
     }
 
@@ -109,7 +118,7 @@ public abstract class Node extends AbstractActor {
                                     .collect(Collectors.joining(","))
                     );
                     currentView = v;
-                    receivedFlush.remove(v);
+                    iter.remove();
                     unstableMessages.remove(v);
                 }
                 else break;
