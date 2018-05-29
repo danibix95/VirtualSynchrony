@@ -29,13 +29,13 @@ public class Participant extends Node {
     public Receive createReceive() {
       return receiveBuilder()
         .match(AssignIDMessage.class, this::onAssignIDMessage)
-        .match(DataMessage.class, this::onDataMessage)
         .match(ViewChangeMessage.class, this::onViewChangeMessage)
         .match(FlushMessage.class, this::onFlushMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
         .match(CrashMessage.class, this::onCrashMessage)
-        .match(A2AMessage.class, this::onA2AMessage)
+        .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
+        .match(DataMessage.class, this::onDataMessage)          // hierarchical overshadowing
         .build();
     }
 
