@@ -75,8 +75,8 @@ public class GroupManager extends Node {
 
     protected void onStableMessage(StableMessage msg) {
         super.onStableMessage(msg);
-        lastMessages.put(getSender(), msg.messageID);
-        scheduleTimeout(MULTICAST_TIMEOUT, msg.messageID, getSender());
+        lastMessages.put(getSender(), msg.id);
+        scheduleTimeout(MULTICAST_TIMEOUT, msg.id, getSender());
     }
 
     private void onTimeout(TimeoutMessage msg) {

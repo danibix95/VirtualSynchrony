@@ -54,9 +54,11 @@ public class Messages {
     }
 
     public static class StableMessage implements Serializable {
+        public final int id;
         public final int messageID;
         public final int senderID;
-        public StableMessage(int messageID, int senderID) {
+        public StableMessage(int id,int messageID, int senderID) {
+            this.id = id;
             this.messageID = messageID;
             this.senderID = senderID;
         }

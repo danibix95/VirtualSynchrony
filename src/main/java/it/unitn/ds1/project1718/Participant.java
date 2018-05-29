@@ -87,7 +87,8 @@ public class Participant extends Node {
                 this.id, this.messageID, currentView.id);
             DataMessage dataMessage = new DataMessage(messageID, this.id);
             multicast(dataMessage);
-            multicast(new StableMessage(dataMessage.id, this.id));
+            this.messageID++;
+            multicast(new StableMessage(this.messageID,dataMessage.id, this.id));
             this.messageID++;
             waitIntervalToSend();
         }
