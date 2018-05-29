@@ -10,6 +10,7 @@ import java.util.List;
 
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
+import it.unitn.ds1.project1718.Messages.CrashMessage;
 
 public class VirtualSynchrony {
     private final static int PARTICIPANTS = 3;
@@ -38,6 +39,10 @@ public class VirtualSynchrony {
         }
 
         try {
+            System.out.println("\n>>> Press ENTER to crash node 1 <<<\n");
+            System.in.read();
+            System.out.println("\tCrashing node 1");
+            initialGroup.get(0).tell(new CrashMessage(),ActorRef.noSender());
             System.out.println("\n>>> Press ENTER to exit <<<\n");
             System.in.read();
         }

@@ -125,7 +125,7 @@ public class GroupManager extends Node {
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
-        lastViewGenerated = (updatedView);
+        lastViewGenerated = updatedView;
         multicastToView(new ViewChangeMessage(updatedView), updatedView);
         getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
 

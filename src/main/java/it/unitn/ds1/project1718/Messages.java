@@ -88,4 +88,6 @@ public class Messages {
     }
 
     public static class SendDataMessage implements Serializable {}
+
+    public static class CrashMessage implements Serializable {}
 }

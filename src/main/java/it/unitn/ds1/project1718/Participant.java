@@ -7,8 +7,8 @@ import java.time.Duration;
 
 public class Participant extends Node {
     private int messageID;
-    private final int MAX_DELAY_BETWEEN_MSG = 1000;
-    private final int MIN_DELAY_BETWEEN_MSG = 300;
+    private final int MAX_DELAY_BETWEEN_MSG = 3000;
+    private final int MIN_DELAY_BETWEEN_MSG = 2000;
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
@@ -34,6 +34,7 @@ public class Participant extends Node {
         .match(FlushMessage.class, this::onFlushMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
+        .match(CrashMessage.class, this::onCrashMessage)
         .build();
     }
 
@@ -103,5 +104,10 @@ public class Participant extends Node {
                 getContext().system().dispatcher(),
                 getSelf()
         );
+    }
+
+    private void onCrashMessage(CrashMessage msg) {
+        this.crashed = true;
+        System.out.format("%d Crashed!\n",this.id);
     }
 }
