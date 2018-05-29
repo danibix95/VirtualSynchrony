@@ -41,6 +41,7 @@ public class Participant extends Node {
 
     protected void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
+        this.actor2id = msg.actorMapping;
     }
 
     @Override

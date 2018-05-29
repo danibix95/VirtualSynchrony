@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class GroupManager extends Node {
     private int lastViewID = 0;
     private int lastAssignedID = 0;
-    private final static int MULTICAST_TIMEOUT = 5000;
+    private final static int MULTICAST_TIMEOUT = 8000;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
     private View lastGeneratedView;
 
@@ -75,8 +75,8 @@ public class GroupManager extends Node {
 
     protected void onStableMessage(StableMessage msg) {
         super.onStableMessage(msg);
-        lastMessages.put(getSender(), msg.messageID);
-        scheduleTimeout(MULTICAST_TIMEOUT, msg.messageID, getSender());
+        lastMessages.put(getSender(), msg.id);
+        scheduleTimeout(MULTICAST_TIMEOUT, msg.id, getSender());
     }
 
     private void onTimeout(TimeoutMessage msg) {
@@ -91,7 +91,7 @@ public class GroupManager extends Node {
                     .collect(Collectors.toList())
             );
 
-            System.out.println("Timeout triggered - " + msg.senderID + ":" + msg.checkID);
+            System.out.println("Timeout triggered - " + getSender() + ":" + msg.checkID);
             multicastToView(new ViewChangeMessage(updatedView), updatedView);
             getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
         }
@@ -121,7 +121,8 @@ public class GroupManager extends Node {
 
         // assign the ID to the requesting node
         lastAssignedID++;
-        getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
+        actor2id.put(getSender(), lastAssignedID);
+        getSender().tell(new AssignIDMessage(lastAssignedID, actor2id), getSelf());
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);

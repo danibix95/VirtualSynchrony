@@ -14,6 +14,7 @@ public abstract class Node extends AbstractActor {
     protected HashMap<View,List<DataMessage>> unstableMessages = new HashMap<>();
     protected TreeMap<View,List<ActorRef>> receivedFlush = new TreeMap<>();
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
+    protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
 
     protected Random rnd = new Random();
 
@@ -46,13 +47,6 @@ public abstract class Node extends AbstractActor {
         @Override
         public int compareTo(View v) {
             return this.id - v.id;
-        }
-    }
-
-    public class ReverseViewComparator implements  Comparator<View> {
-        @Override
-        public int compare(View v1, View v2) {
-            return v2.id - v1.id;
         }
     }
 
@@ -112,7 +106,7 @@ public abstract class Node extends AbstractActor {
                             "%d install view %d %s\n",
                             this.id,
                             v.id,
-                            v.members.stream().map((m) -> m.path().name())
+                            v.members.stream().map((m) -> String.valueOf(actor2id.get(m)))
                                     .collect(Collectors.joining(","))
                     );
                     currentView = v;

@@ -5,6 +5,7 @@ import it.unitn.ds1.project1718.Node.View;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 
 public class Messages {
     public static class StartMessage implements Serializable {
@@ -16,8 +17,10 @@ public class Messages {
 
     public static class AssignIDMessage implements Serializable {
         public final int newID;
-        public AssignIDMessage(int newID) {
+        public final HashMap<ActorRef, Integer> actorMapping;
+        public AssignIDMessage(int newID, HashMap<ActorRef, Integer> actorMapping) {
             this.newID = newID;
+            this.actorMapping = actorMapping;
         }
     }
 
