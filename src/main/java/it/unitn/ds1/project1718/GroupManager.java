@@ -90,6 +90,7 @@ public class GroupManager extends Node {
                     .collect(Collectors.toList())
             );
 
+            System.out.println("Timeout triggered - " + msg.senderID + ":" + msg.checkID);
             multicastToView(new ViewChangeMessage(updatedView), updatedView);
             getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
         }
@@ -100,20 +101,17 @@ public class GroupManager extends Node {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
                 View updatedView = new View(
                     lastViewID,
-                    msg.view.members.stream()
+                    lastGeneratedView.members.stream()
                         .filter((node) -> !node.equals(getSender()))
                         .collect(Collectors.toList())
                 );
 
+                System.out.println("Flush Timeout triggered");
                 multicastToView(new ViewChangeMessage(updatedView), updatedView);
                 getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
             }
         }
     }
-
-    // check timeout flush
-    // if previous view not present => ok
-    // otherwise if present check if flush was delivered
 
     private void onJoinMessage(JoinMessage msg) {
         System.out.format("%s requested to join the system\n", getSender().path().name());
@@ -127,6 +125,7 @@ public class GroupManager extends Node {
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
+        System.out.println("Join triggered");
         multicastToView(new ViewChangeMessage(updatedView), updatedView);
         getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
 
