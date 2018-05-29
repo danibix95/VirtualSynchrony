@@ -43,8 +43,11 @@ public class Participant extends Node {
     protected boolean onFlushMessage(FlushMessage msg){
         boolean viewInstalled = super.onFlushMessage(msg);
         if(viewInstalled) {
-            this.justEntered = false;
             this.allowSending = true;
+            if(this.justEntered){
+                this.justEntered = false;
+                getSelf().tell(new SendDataMessage(),getSelf());
+            }
             return true;
         }
         return false;

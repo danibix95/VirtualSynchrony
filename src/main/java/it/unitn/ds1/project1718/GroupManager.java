@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 public class GroupManager extends Node {
@@ -15,6 +16,7 @@ public class GroupManager extends Node {
     private int lastAssignedID = 0;
     private final static int MULTICAST_TIMEOUT = 5000;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
+    private View lastViewGenerated;
 
     public GroupManager() {
         super();
@@ -61,6 +63,7 @@ public class GroupManager extends Node {
 
     private void onStartMessage(StartMessage msg) {
         currentView = msg.view;
+        lastViewGenerated = currentView;
         System.out.format("Group Manager initialized with view %d\n", currentView.id);
     }
 
@@ -83,7 +86,7 @@ public class GroupManager extends Node {
 
             View updatedView = new View(
                 lastViewID,
-                currentView.members.stream()
+                lastViewGenerated.members.stream()
                     .filter((node) -> !node.equals(getSender()))
                     .collect(Collectors.toList())
             );
@@ -113,7 +116,7 @@ public class GroupManager extends Node {
 
     private void onJoinMessage(JoinMessage msg) {
         System.out.format("%s requested to join the system\n", getSender().path().name());
-        List<ActorRef> updatedMembers = new ArrayList<>(currentView.members);
+        List<ActorRef> updatedMembers = new ArrayList<>(lastViewGenerated.members);
         updatedMembers.add(getSender());
 
         // assign the ID to the requesting node
@@ -122,6 +125,7 @@ public class GroupManager extends Node {
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
+        lastViewGenerated = (updatedView);
         multicastToView(new ViewChangeMessage(updatedView), updatedView);
         getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
 
