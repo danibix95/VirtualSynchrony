@@ -151,6 +151,15 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onA2AMessage(A2AMessage msg){
-        receivedMessages.get(currentView).add(msg);
+        if(!receivedMessages.containsKey(msg)) {
+            System.out.format(
+                    "%d deliver multicast %d from %d within %d\n",
+                    this.id,
+                    msg.id,
+                    msg.senderID,
+                    currentView.id
+            );
+            receivedMessages.get(currentView).add(msg);
+        }
     }
 }

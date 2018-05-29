@@ -7,8 +7,8 @@ import java.time.Duration;
 
 public class Participant extends Node {
     private int messageID;
-    private final int MAX_DELAY_BETWEEN_MSG = 3000;
-    private final int MIN_DELAY_BETWEEN_MSG = 2000;
+    private final int MAX_DELAY_BETWEEN_MSG = 2500;
+    private final int MIN_DELAY_BETWEEN_MSG = 1500;
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
