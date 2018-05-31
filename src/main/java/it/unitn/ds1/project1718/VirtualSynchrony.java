@@ -62,8 +62,11 @@ public class VirtualSynchrony {
                         break;
                     case "c" :
                         try {
-                            int node = scanner.nextInt();
-                            if (node < actorsGroup.size()) {
+                            int node = scanner.nextInt()-1;
+                            if (node < 0) {
+                                System.out.println("Given actor doesn't exist!");
+                            }
+                            else if (node < actorsGroup.size()) {
                                 ActorRef toCrash = actorsGroup.get(node);
                                 toCrash.tell(new CrashMessage(), ActorRef.noSender());
                                 System.out.println("Selected actor crashed!");

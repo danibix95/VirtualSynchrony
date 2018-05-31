@@ -17,10 +17,8 @@ public class Messages {
 
     public static class AssignIDMessage implements Serializable {
         public final int newID;
-        public final HashMap<ActorRef, Integer> actorMapping;
-        public AssignIDMessage(int newID, HashMap<ActorRef, Integer> actorMapping) {
+        public AssignIDMessage(int newID) {
             this.newID = newID;
-            this.actorMapping = actorMapping;
         }
     }
 
@@ -50,8 +48,10 @@ public class Messages {
 
     public static class ViewChangeMessage implements Serializable {
 		public final View view;
-        public ViewChangeMessage(View view) {
+        public final HashMap<ActorRef, Integer> actorMapping;
+        public ViewChangeMessage(View view, HashMap<ActorRef, Integer> actorMapping) {
             this.view = view;
+            this.actorMapping = actorMapping;
         }    	
     }
 

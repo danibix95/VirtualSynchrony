@@ -16,7 +16,6 @@ public abstract class Node extends AbstractActor {
     protected HashMap<View,List<DataMessage>> unstableMessages = new HashMap<>();
     protected TreeMap<View,List<ActorRef>> receivedFlush = new TreeMap<>();
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
-    // TODO: update! YOU SHALL NOT PASS REFERENCES!
     protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
     protected HashMap<View,List<DataMessage>> waitToDeliver = new HashMap<>();
 
@@ -169,25 +168,13 @@ public abstract class Node extends AbstractActor {
     }
 
     private View fromWhichView(ActorRef sender) {
-        if (receivedFlush.keySet().isEmpty()) {
-            // the same view; no viewchange has been triggered
-            return this.currentView;
-        }
-        else {
+        if (!receivedFlush.keySet().isEmpty()) {
             // find the last flush i've got from said process
             TreeMap<View,List<ActorRef>> rev = new TreeMap<>(Collections.reverseOrder());
             rev.putAll(receivedFlush);
 
-
             for (Map.Entry<View,List<ActorRef>> entry:rev.entrySet()) {
                 List<ActorRef> recFlush = entry.getValue();
-                /*debug
-                System.out.print("V"+entry.getKey().id+": ");
-                for(ActorRef a : recFlush){
-                    System.out.print(actor2id.get(a)+" ");
-                }
-                System.out.println();
-                //debug */
 
                 if(recFlush.contains(sender)) {
                     // as soon as I find a flush(the latest) i return the view for which it has been sent
@@ -195,8 +182,9 @@ public abstract class Node extends AbstractActor {
                 }
             }
             // if I don't find any flush from the given node -> still current view
-            return this.currentView;
         }
+        // the same view; no view change has been triggered
+        return this.currentView;
     }
 
     private void deliver(DataMessage msg) {
@@ -213,11 +201,8 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onDataMessage(DataMessage msg) {
-        ActorRef sender = getSender();
-        View senderView = fromWhichView(sender);
-        //System.out.format("%d got msg %d from %d in v%d\n",this.id,msg.id,msg.senderID,senderView.id);
+        View senderView = fromWhichView(getSender());
         if (senderView == this.currentView) {
-            //System.out.print("Instant ");
             deliver(msg);
         }
         else {
@@ -242,7 +227,7 @@ public abstract class Node extends AbstractActor {
     protected void onA2AMessage(A2AMessage msg) {
         ActorRef sender = getSender();
         View senderView = fromWhichView(sender);
-        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
+        if (receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
             if (senderView == this.currentView) {
                 logger.info("A2A");
                 deliver(msg);

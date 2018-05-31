@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class GroupManager extends Node {
     private int lastViewID = 0;
     private int lastAssignedID = 0;
-    private final static int MULTICAST_TIMEOUT = 6000;
+    private final static int MULTICAST_TIMEOUT = 5500;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
     private View lastGeneratedView;
 
@@ -41,9 +41,9 @@ public class GroupManager extends Node {
             .build();
     }
 
-    private void scheduleTimeout(int time, int messageID, ActorRef sender) {
+    private void scheduleTimeout(int messageID, ActorRef sender) {
         getContext().system().scheduler().scheduleOnce(
-            Duration.ofMillis(time),
+            Duration.ofMillis(MULTICAST_TIMEOUT),
             getSelf(),
             new TimeoutMessage(messageID, sender),
             getContext().system().dispatcher(),
@@ -51,9 +51,9 @@ public class GroupManager extends Node {
         );
     }
 
-    private void scheduleFlushTimeout(int time, View view, ActorRef sender) {
+    private void scheduleFlushTimeout(View view, ActorRef sender) {
         getContext().system().scheduler().scheduleOnce(
-            Duration.ofMillis(time),
+            Duration.ofMillis(MULTICAST_TIMEOUT),
             getSelf(),
             new FlushTimeoutMessage(view, sender),
             getContext().system().dispatcher(),
@@ -73,13 +73,18 @@ public class GroupManager extends Node {
     protected void onDataMessage(DataMessage msg) {
         super.onDataMessage(msg);
         lastMessages.put(getSender(), msg.id);
-        scheduleTimeout(MULTICAST_TIMEOUT, msg.id, getSender());
+        scheduleTimeout(msg.id, getSender());
     }
 
     protected void onStableMessage(StableMessage msg) {
         super.onStableMessage(msg);
         lastMessages.put(getSender(), msg.id);
-        scheduleTimeout(MULTICAST_TIMEOUT, msg.id, getSender());
+        scheduleTimeout(msg.id, getSender());
+    }
+
+    private void sendViewChange(View newView, ActorRef self) {
+        multicastToView(new ViewChangeMessage(newView, actor2id), newView);
+        getSelf().tell(new ViewChangeMessage(newView, null), self);
     }
 
     private void onTimeout(TimeoutMessage msg) {
@@ -95,8 +100,7 @@ public class GroupManager extends Node {
             );
 
             logger.info("Timeout triggered - " + getSender() + ":" + msg.checkID);
-            multicastToView(new ViewChangeMessage(updatedView), updatedView);
-            getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
+            sendViewChange(updatedView, getSelf());
         }
     }
 
@@ -111,8 +115,7 @@ public class GroupManager extends Node {
                 );
 
                 logger.info("Flush Timeout triggered");
-                multicastToView(new ViewChangeMessage(updatedView), updatedView);
-                getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
+                sendViewChange(updatedView, getSelf());
             }
         }
     }
@@ -125,18 +128,17 @@ public class GroupManager extends Node {
         // assign the ID to the requesting node
         lastAssignedID++;
         actor2id.put(getSender(), lastAssignedID);
-        getSender().tell(new AssignIDMessage(lastAssignedID, actor2id), getSelf());
+        getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
         logger.info("Join triggered");
-        multicastToView(new ViewChangeMessage(updatedView), updatedView);
-        getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
+        sendViewChange(updatedView, getSelf());
 
         for (ActorRef actor : updatedView.members) {
             if (!actor.equals(getSelf())) {
-                scheduleFlushTimeout(MULTICAST_TIMEOUT, updatedView, actor);
+                scheduleFlushTimeout(updatedView, actor);
             }
         }
     }

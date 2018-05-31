@@ -7,8 +7,8 @@ import java.time.Duration;
 
 public class Participant extends Node {
     private int messageID;
-    private final int MAX_DELAY = 2500;
-    private final int MIN_DELAY = 1500;
+    private final int MAX_DELAY = 2000;
+    private final int MIN_DELAY = 1200;
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
@@ -41,7 +41,6 @@ public class Participant extends Node {
 
     protected void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
-        this.actor2id = msg.actorMapping;
 
         setLogger(Participant.class.getName() + "-" + msg.newID,
             "node-" + msg.newID + ".log");
@@ -49,13 +48,13 @@ public class Participant extends Node {
 
     @Override
     protected boolean onFlushMessage(FlushMessage msg){
-        if(!this.crashed) {
+        if (!this.crashed) {
             boolean viewInstalled = super.onFlushMessage(msg);
-            if(viewInstalled) {
+            if (viewInstalled) {
                 this.allowSending = true;
-                if(this.justEntered){
+                if (this.justEntered) {
                     this.justEntered = false;
-                    getSelf().tell(new SendDataMessage(),getSelf());
+                    getSelf().tell(new SendDataMessage(), getSelf());
                 }
                 return true;
             }
@@ -85,6 +84,9 @@ public class Participant extends Node {
     @Override
     protected void onViewChangeMessage(ViewChangeMessage msg) {
         if (!this.crashed) {
+            // clear actor mapping and set the new one coming from GroupManager
+            msg.actorMapping.forEach((k, v) ->  actor2id.put(k, v));
+
             this.allowSending = false;
             super.onViewChangeMessage(msg);
         }
