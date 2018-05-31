@@ -6,10 +6,8 @@ import it.unitn.ds1.project1718.Messages.*;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+import java.util.logging.*;
+import java.util.logging.Formatter;
 import java.util.stream.Collectors;
 
 public abstract class Node extends AbstractActor {
@@ -30,7 +28,7 @@ public abstract class Node extends AbstractActor {
         super();
     }
 
-    public static class View implements Comparable<View>{
+    public static class View implements Comparable<View> {
         public final int id;
         public final List<ActorRef> members;
 
@@ -58,15 +56,30 @@ public abstract class Node extends AbstractActor {
         }
     }
 
+    protected static class TextFormatter extends Formatter {
+        public String format(LogRecord record) {
+            StringBuilder builder = new StringBuilder(1000);
+            builder.append(formatMessage(record));
+            builder.append("\n");
+            return builder.toString();
+        }
+
+        public String getHead(Handler h) {
+            return super.getHead(h);
+        }
+
+        public String getTail(Handler h) {
+            return super.getTail(h);
+        }
+    }
+
     protected void setLogger(String className, String filename) {
         this.logger = Logger.getLogger(className);
         this.logger.setLevel(Level.INFO);
         FileHandler fh;
         try {
             fh = new FileHandler("vs-logs/" + filename);
-            System.setProperty("java.util.logging.SimpleFormatter.format",
-                "%5$s%6$s%n");
-            SimpleFormatter formatter = new SimpleFormatter();
+            TextFormatter formatter = new TextFormatter();
             fh.setFormatter(formatter);
             this.logger.setUseParentHandlers(false);
             this.logger.addHandler(fh);
@@ -166,7 +179,7 @@ public abstract class Node extends AbstractActor {
             rev.putAll(receivedFlush);
 
 
-            for(Map.Entry<View,List<ActorRef>> entry:rev.entrySet()) {
+            for (Map.Entry<View,List<ActorRef>> entry:rev.entrySet()) {
                 List<ActorRef> recFlush = entry.getValue();
                 /*debug
                 System.out.print("V"+entry.getKey().id+": ");
@@ -188,7 +201,7 @@ public abstract class Node extends AbstractActor {
 
     private void deliver(DataMessage msg) {
         logger.info(
-            this.id + " deliver multicast"
+            this.id + " deliver multicast "
                 + msg.id + " from "
                 + msg.senderID + " within "
                 + currentView.id
@@ -229,9 +242,9 @@ public abstract class Node extends AbstractActor {
     protected void onA2AMessage(A2AMessage msg) {
         ActorRef sender = getSender();
         View senderView = fromWhichView(sender);
-        if (!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
-            if(senderView == this.currentView){
-                logger.info("A2A ");
+        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
+            if (senderView == this.currentView) {
+                logger.info("A2A");
                 deliver(msg);
             }
             else {

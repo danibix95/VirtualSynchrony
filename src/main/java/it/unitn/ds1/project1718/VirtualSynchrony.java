@@ -6,15 +6,21 @@ import it.unitn.ds1.project1718.Messages.CrashMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Scanner;
+import java.io.File;
+import java.util.*;
 
 public class VirtualSynchrony {
-    private final static int PARTICIPANTS = 2;
+    private final static int PARTICIPANTS = 3;
 
     public static void main(String[] args) {
+        // create logs folder
+        try {
+            new File("vs-logs").mkdir();
+        }
+        catch (SecurityException se) {
+            System.err.println("Impossible to create folder in which logs will be saved!");
+            se.printStackTrace();
+        }
         final ActorSystem system = ActorSystem.create("virtual-synchrony");
 
         ActorRef groupManager = system.actorOf(GroupManager.props(), "0");
@@ -52,22 +58,38 @@ public class VirtualSynchrony {
                         ActorRef newActor = system.actorOf(Participant.props(), String.valueOf("node-" + id++));
                         actorsGroup.add(newActor);
                         groupManager.tell(new JoinMessage(), newActor);
+                        System.out.println("New actor joined!");
                         break;
                     case "c" :
-                        int node = scanner.nextInt();
-                        if (node < actorsGroup.size()) {
-                            ActorRef toCrash = actorsGroup.get(node);
-                            toCrash.tell(new CrashMessage(), ActorRef.noSender());
+                        try {
+                            int node = scanner.nextInt();
+                            if (node < actorsGroup.size()) {
+                                ActorRef toCrash = actorsGroup.get(node);
+                                toCrash.tell(new CrashMessage(), ActorRef.noSender());
+                                System.out.println("Selected actor crashed!");
+                            }
+                            else {
+                                System.out.println("Given actor doesn't exist or has already crashed!");
+                            }
                         }
-                        else {
-                            System.out.println("Given actor doesn't exist or has already crashed!");
+                        catch (InputMismatchException ime) {
+                            System.out.println("\nYou've not passed an integer id!");
+                            scanner.skip(".*");
+                        }
+                        catch (NoSuchElementException nsee) {
+                            System.out.println("\nNo input passed!");
                         }
                         break;
+                    case "e":
+                        System.out.println("Exit...");
+                        break;
+                    default:
+                        System.out.println("Command not recognized! Try again");
                 }
             }
             scanner.close();
         }
-        catch (NoSuchElementException nsee) {}
+        catch (IllegalStateException ise) {}
         system.terminate();
     }
 }
