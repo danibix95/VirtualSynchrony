@@ -45,6 +45,10 @@ public class VirtualSynchrony {
             initialGroup.get(0).tell(new CrashMessage(),ActorRef.noSender());
             System.out.println("\n>>> Press ENTER to exit <<<\n");
             System.in.read();
+
+            // join     J
+            // crash    C x
+            // recover  R x
         }
         catch (IOException ioe) {}
         system.terminate();

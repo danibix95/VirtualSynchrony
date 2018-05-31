@@ -57,7 +57,7 @@ public abstract class Node extends AbstractActor {
     protected void multicastToView(Serializable m, View view) {
         List<ActorRef> shuffledGroup = new ArrayList<>(view.members);
         Collections.shuffle(shuffledGroup);
-        for (ActorRef p:shuffledGroup) {
+        for (ActorRef p : shuffledGroup) {
             if (!p.equals(getSelf())) {
                 p.tell(m, getSelf());
                 try {
@@ -71,12 +71,12 @@ public abstract class Node extends AbstractActor {
     }
 
     private View getPreviousView(View v) {
-        return new View(v.id-1,new ArrayList<>());
+        return new View(v.id-1, new ArrayList<>());
     }
 
     protected void onViewChangeMessage(ViewChangeMessage msg) {
         View previousView = getPreviousView(msg.view);
-        if(unstableMessages.containsKey(previousView)) {
+        if (unstableMessages.containsKey(previousView)) {
             sendAllUnstableMessages(unstableMessages.get(previousView), msg.view);
         }
         multicastToView(new FlushMessage(msg.view), msg.view);
@@ -85,7 +85,7 @@ public abstract class Node extends AbstractActor {
 
     protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
         for (DataMessage m: messages) {
-            multicastToView(new A2AMessage(m.id,m.senderID),view);
+            multicastToView(new A2AMessage(m.id, m.senderID, m.originalView), view);
         }
     }
 
@@ -127,34 +127,35 @@ public abstract class Node extends AbstractActor {
             this.id,
             msg.id,
             msg.senderID,
-            currentView.id
+            msg.originalView.id
         );
         if (!this.receivedMessages.containsKey(currentView)) {
             this.receivedMessages.put(currentView, new ArrayList<>());
         }
         this.receivedMessages.get(currentView).add(msg);
-        if(!this.unstableMessages.containsKey(currentView)){
-            this.unstableMessages.put(currentView,new ArrayList<>());
+        if (!this.unstableMessages.containsKey(currentView)) {
+            this.unstableMessages.put(currentView, new ArrayList<>());
         }
         this.unstableMessages.get(currentView).add(msg);
     }
 
     protected void onStableMessage(StableMessage msg) {
         this.unstableMessages.remove(
-            new DataMessage(msg.messageID, msg.senderID)
+            new DataMessage(msg.messageID, msg.senderID, currentView)
         );
     }
 
-    protected void onA2AMessage(A2AMessage msg){
+    protected void onA2AMessage(A2AMessage msg) {
+        // TODO: why second boolean condition??
         if(!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
             System.out.format(
                     "A2A %d deliver multicast %d from %d within %d\n",
                     this.id,
                     msg.id,
                     msg.senderID,
-                    currentView.id
+                    msg.originalView.id
             );
-            receivedMessages.get(currentView).add(msg);
+            receivedMessages.get(msg.originalView).add(msg);
         }
     }
 }
