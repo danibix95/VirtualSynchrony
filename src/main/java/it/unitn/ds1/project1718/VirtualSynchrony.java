@@ -2,16 +2,17 @@ package it.unitn.ds1.project1718;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-
-import java.io.IOException;
-import java.util.*;
-
+import it.unitn.ds1.project1718.Messages.CrashMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
-import it.unitn.ds1.project1718.Messages.CrashMessage;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
 
 public class VirtualSynchrony {
-    private final static int PARTICIPANTS = 3;
+    private final static int PARTICIPANTS = 2;
 
     public static void main(String[] args) {
         final ActorSystem system = ActorSystem.create("virtual-synchrony");

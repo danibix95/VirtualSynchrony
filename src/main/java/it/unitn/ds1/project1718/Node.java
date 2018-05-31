@@ -20,6 +20,7 @@ public abstract class Node extends AbstractActor {
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
     // TODO: update! YOU SHALL NOT PASS REFERENCES!
     protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
+    protected HashMap<View,List<DataMessage>> waitToDeliver = new HashMap<>();
 
     protected Logger logger = null;
 
@@ -134,9 +135,18 @@ public abstract class Node extends AbstractActor {
                                 .map((m) -> String.valueOf(actor2id.get(m)))
                                 .collect(Collectors.joining(","))
                     );
-                    currentView = v;
+                    this.currentView = v;
                     iter.remove();
                     unstableMessages.remove(v);
+                    // deliver messages waiting for the viewInstall
+                    List<DataMessage> queue = this.waitToDeliver.get(v);
+                    if(queue!=null){
+                        for(DataMessage m: queue){
+                            //System.out.print("From Q ");
+                            deliver(m);
+                        }
+                    }
+                    this.waitToDeliver.remove(v);
                 }
                 else break;
             }
@@ -145,21 +155,69 @@ public abstract class Node extends AbstractActor {
         return false;
     }
 
-    protected void onDataMessage(DataMessage msg) {
+    private View fromWhichView(ActorRef sender) {
+        if (receivedFlush.keySet().isEmpty()) {
+            // the same view; no viewchange has been triggered
+            return this.currentView;
+        }
+        else {
+            // find the last flush i've got from said process
+            TreeMap<View,List<ActorRef>> rev = new TreeMap<>(Collections.reverseOrder());
+            rev.putAll(receivedFlush);
+
+
+            for(Map.Entry<View,List<ActorRef>> entry:rev.entrySet()) {
+                List<ActorRef> recFlush = entry.getValue();
+                /*debug
+                System.out.print("V"+entry.getKey().id+": ");
+                for(ActorRef a : recFlush){
+                    System.out.print(actor2id.get(a)+" ");
+                }
+                System.out.println();
+                //debug */
+
+                if(recFlush.contains(sender)) {
+                    // as soon as I find a flush(the latest) i return the view for which it has been sent
+                    return entry.getKey();
+                }
+            }
+            // if I don't find any flush from the given node -> still current view
+            return this.currentView;
+        }
+    }
+
+    private void deliver(DataMessage msg) {
         logger.info(
             this.id + " deliver multicast"
-            + msg.id + " from "
-            + msg.senderID + " within "
-            + currentView.id
+                + msg.id + " from "
+                + msg.senderID + " within "
+                + currentView.id
         );
-        if (!this.receivedMessages.containsKey(currentView)) {
-            this.receivedMessages.put(currentView, new ArrayList<>());
+        if (!this.receivedMessages.containsKey(this.currentView)) {
+            this.receivedMessages.put(this.currentView, new ArrayList<>());
         }
-        this.receivedMessages.get(currentView).add(msg);
-        if (!this.unstableMessages.containsKey(currentView)) {
-            this.unstableMessages.put(currentView, new ArrayList<>());
+        this.receivedMessages.get(this.currentView).add(msg);
+    }
+
+    protected void onDataMessage(DataMessage msg) {
+        ActorRef sender = getSender();
+        View senderView = fromWhichView(sender);
+        //System.out.format("%d got msg %d from %d in v%d\n",this.id,msg.id,msg.senderID,senderView.id);
+        if (senderView == this.currentView) {
+            //System.out.print("Instant ");
+            deliver(msg);
         }
-        this.unstableMessages.get(currentView).add(msg);
+        else {
+            if (!this.waitToDeliver.containsKey(senderView)) {
+                this.waitToDeliver.put(senderView, new ArrayList<>());
+            }
+            this.waitToDeliver.get(senderView).add(msg);
+        }
+
+        if (!this.unstableMessages.containsKey(senderView)) {
+            this.unstableMessages.put(senderView, new ArrayList<>());
+        }
+        this.unstableMessages.get(senderView).add(msg);
     }
 
     protected void onStableMessage(StableMessage msg) {
@@ -169,14 +227,16 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onA2AMessage(A2AMessage msg) {
-        if(receivedMessages.containsKey(currentView) && msg.senderID != this.id) {
-            logger.info(
-                "A2A " + this.id + " deliver multicast"
-                    + msg.id + " from "
-                    + msg.senderID + " within "
-                    + currentView.id
-            );
-            receivedMessages.get(currentView).add(msg);
+        ActorRef sender = getSender();
+        View senderView = fromWhichView(sender);
+        if (!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
+            if(senderView == this.currentView){
+                logger.info("A2A ");
+                deliver(msg);
+            }
+            else {
+                this.waitToDeliver.get(senderView).add(msg);
+            }
         }
     }
 }

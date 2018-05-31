@@ -4,10 +4,6 @@ import akka.actor.Props;
 import it.unitn.ds1.project1718.Messages.*;
 
 import java.time.Duration;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public class Participant extends Node {
     private int messageID;
@@ -83,7 +79,7 @@ public class Participant extends Node {
 
     @Override
     protected void onA2AMessage(A2AMessage msg) {
-        if (!justEntered) super.onA2AMessage(msg);
+        if (!justEntered && !this.crashed) super.onA2AMessage(msg);
     }
 
     @Override
@@ -95,16 +91,18 @@ public class Participant extends Node {
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        // TODO: if not crashed delay event
-        if (this.allowSending && !this.crashed) {
-            logger.info(this.id + " send multicast "
+        if(!this.crashed){
+            if (this.allowSending) {
+                logger.info(this.id + " send multicast "
                     + this.messageID + " within " + currentView.id);
-            DataMessage dataMessage = new DataMessage(messageID, this.id);
-            multicast(dataMessage);
-            this.messageID++;
+                DataMessage dataMessage = new DataMessage(messageID, this.id);
+                multicast(dataMessage);
+                this.messageID++;
 
-            multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
-            this.messageID++;
+                multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
+                this.messageID++;
+            }
+            // wait anyway; if allowSending==false it's just  a postponed action
             waitIntervalToSend();
         }
     }
