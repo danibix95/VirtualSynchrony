@@ -5,6 +5,7 @@ import it.unitn.ds1.project1718.Node.View;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 
 public class Messages {
     public static class StartMessage implements Serializable {
@@ -39,10 +40,18 @@ public class Messages {
         }
     }
 
+    public static class A2AMessage extends DataMessage {
+        public A2AMessage(int id, int originalSender) {
+            super(id, originalSender);
+        }
+    }
+
     public static class ViewChangeMessage implements Serializable {
 		public final View view;
-        public ViewChangeMessage(View view) {
+        public final HashMap<ActorRef, Integer> actorMapping;
+        public ViewChangeMessage(View view, HashMap<ActorRef, Integer> actorMapping) {
             this.view = view;
+            this.actorMapping = actorMapping;
         }    	
     }
 
@@ -54,9 +63,11 @@ public class Messages {
     }
 
     public static class StableMessage implements Serializable {
+        public final int id;
         public final int messageID;
         public final int senderID;
-        public StableMessage(int messageID, int senderID) {
+        public StableMessage(int id,int messageID, int senderID) {
+            this.id = id;
             this.messageID = messageID;
             this.senderID = senderID;
         }
