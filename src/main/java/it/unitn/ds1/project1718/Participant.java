@@ -7,8 +7,8 @@ import java.time.Duration;
 
 public class Participant extends Node {
     private int messageID;
-    private final int MAX_DELAY_BETWEEN_MSG = 2500;
-    private final int MIN_DELAY_BETWEEN_MSG = 1500;
+    private final int MAX_DELAY = 2500;
+    private final int MIN_DELAY = 1500;
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
@@ -42,6 +42,9 @@ public class Participant extends Node {
     protected void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
         this.actor2id = msg.actorMapping;
+
+        setLogger(Participant.class.getName() + "-" + msg.newID,
+            "node-" + msg.newID + ".log");
     }
 
     @Override
@@ -75,29 +78,37 @@ public class Participant extends Node {
     }
 
     @Override
+    protected void onA2AMessage(A2AMessage msg) {
+        if (!justEntered && !this.crashed) super.onA2AMessage(msg);
+    }
+
+    @Override
     protected void onViewChangeMessage(ViewChangeMessage msg) {
-        if(!this.crashed) {
+        if (!this.crashed) {
             this.allowSending = false;
             super.onViewChangeMessage(msg);
         }
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        // TODO: if not crashed delay event
-        if(this.allowSending && !this.crashed){
-            System.out.format("%d send multicast %d within %d\n",
-                this.id, this.messageID, currentView.id);
-            DataMessage dataMessage = new DataMessage(messageID, this.id);
-            multicast(dataMessage);
-            this.messageID++;
-            multicast(new StableMessage(this.messageID,dataMessage.id, this.id));
-            this.messageID++;
+        if(!this.crashed){
+            if (this.allowSending) {
+                logger.info(this.id + " send multicast "
+                    + this.messageID + " within " + currentView.id);
+                DataMessage dataMessage = new DataMessage(messageID, this.id);
+                multicast(dataMessage);
+                this.messageID++;
+
+                multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
+                this.messageID++;
+            }
+            // wait anyway; if allowSending==false it's just  a postponed action
             waitIntervalToSend();
         }
     }
 
     private int randomWatingTime() {
-        return rnd.nextInt(MAX_DELAY_BETWEEN_MSG-MIN_DELAY_BETWEEN_MSG)+MIN_DELAY_BETWEEN_MSG;
+        return rnd.nextInt(MAX_DELAY - MIN_DELAY) + MIN_DELAY;
     }
 
     private void waitIntervalToSend() {
@@ -112,11 +123,6 @@ public class Participant extends Node {
 
     private void onCrashMessage(CrashMessage msg) {
         this.crashed = true;
-        System.out.format("%d Crashed!\n",this.id);
-    }
-
-    @Override
-    protected void onA2AMessage(A2AMessage msg){
-        if(!justEntered) super.onA2AMessage(msg);
+        logger.info(this.id + " crashed!");
     }
 }

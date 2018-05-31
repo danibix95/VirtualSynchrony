@@ -2,18 +2,17 @@ package it.unitn.ds1.project1718;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
+import it.unitn.ds1.project1718.Messages.CrashMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
-import it.unitn.ds1.project1718.Messages.CrashMessage;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
 
 public class VirtualSynchrony {
-    private final static int PARTICIPANTS = 3;
+    private final static int PARTICIPANTS = 2;
 
     public static void main(String[] args) {
         final ActorSystem system = ActorSystem.create("virtual-synchrony");
@@ -22,31 +21,53 @@ public class VirtualSynchrony {
 
         // initial ID for group currentView
         int id = 1;
-        List<ActorRef> initialGroup = new ArrayList<>();
+        List<ActorRef> actorsGroup = new ArrayList<>();
         for (; id <= PARTICIPANTS; id++) {
-            initialGroup.add(system.actorOf(
+            actorsGroup.add(system.actorOf(
                 Participant.props(),
                 String.valueOf("node-" + id))
             );
         }
-        initialGroup = Collections.unmodifiableList(initialGroup);
 
         // insert the group manager in the initial view
         groupManager.tell(new StartMessage(groupManager), ActorRef.noSender());
 
-        for (ActorRef member : initialGroup) {
+        for (ActorRef member : actorsGroup) {
             groupManager.tell(new JoinMessage(), member);
         }
 
         try {
-            System.out.println("\n>>> Press ENTER to crash node 1 <<<\n");
-            System.in.read();
-            System.out.println("\tCrashing node 1");
-            initialGroup.get(0).tell(new CrashMessage(),ActorRef.noSender());
-            System.out.println("\n>>> Press ENTER to exit <<<\n");
-            System.in.read();
+            String command = "";
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("Commands:\n"
+                + "\te   -> exit\n"
+                + "\tj   -> create new node and join to the group\n"
+                + "\tc x -> set node x in a crashed state\n"
+            );
+            while (!command.equals("e")) {
+                System.out.println("Insert next command:");
+                command = scanner.next();
+                switch (command) {
+                    case "j" :
+                        ActorRef newActor = system.actorOf(Participant.props(), String.valueOf("node-" + id++));
+                        actorsGroup.add(newActor);
+                        groupManager.tell(new JoinMessage(), newActor);
+                        break;
+                    case "c" :
+                        int node = scanner.nextInt();
+                        if (node < actorsGroup.size()) {
+                            ActorRef toCrash = actorsGroup.get(node);
+                            toCrash.tell(new CrashMessage(), ActorRef.noSender());
+                        }
+                        else {
+                            System.out.println("Given actor doesn't exist or has already crashed!");
+                        }
+                        break;
+                }
+            }
+            scanner.close();
         }
-        catch (IOException ioe) {}
+        catch (NoSuchElementException nsee) {}
         system.terminate();
     }
 }
