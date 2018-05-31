@@ -76,7 +76,7 @@ public class Participant extends Node {
 
     @Override
     protected void onA2AMessage(A2AMessage msg) {
-        if (!justEntered) super.onA2AMessage(msg);
+        if (!justEntered && !this.crashed) super.onA2AMessage(msg);
     }
 
     @Override
@@ -88,16 +88,18 @@ public class Participant extends Node {
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        // TODO: if not crashed delay event
-        if (this.allowSending && !this.crashed) {
-            System.out.format("%d send multicast %d within %d\n",
-                this.id, this.messageID, currentView.id);
-            DataMessage dataMessage = new DataMessage(messageID, this.id, currentView);
-            multicast(dataMessage);
-            this.messageID++;
+        if(!this.crashed){
+            if (this.allowSending) {
+                System.out.format("%d send multicast %d within %d\n",
+                        this.id, this.messageID, currentView.id);
+                DataMessage dataMessage = new DataMessage(messageID, this.id, currentView);
+                multicast(dataMessage);
+                this.messageID++;
 
-            multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
-            this.messageID++;
+                multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
+                this.messageID++;
+            }
+            // wait anyway; if allowSending==false it's just  a postponed action
             waitIntervalToSend();
         }
     }

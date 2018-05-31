@@ -13,7 +13,7 @@ import it.unitn.ds1.project1718.Messages.StartMessage;
 import it.unitn.ds1.project1718.Messages.CrashMessage;
 
 public class VirtualSynchrony {
-    private final static int PARTICIPANTS = 3;
+    private final static int PARTICIPANTS = 2;
 
     public static void main(String[] args) {
         final ActorSystem system = ActorSystem.create("virtual-synchrony");
