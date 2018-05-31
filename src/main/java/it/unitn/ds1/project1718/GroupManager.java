@@ -65,7 +65,9 @@ public class GroupManager extends Node {
         currentView = msg.view;
         lastGeneratedView = currentView;
         actor2id.put(getSelf(), id);
-        System.out.format("Group Manager initialized with view %d\n", currentView.id);
+
+        setLogger(GroupManager.class.getName(), "group-manager.log");
+        logger.info("Group Manager initialized with view " + currentView.id);
     }
 
     protected void onDataMessage(DataMessage msg) {
@@ -92,7 +94,7 @@ public class GroupManager extends Node {
                     .collect(Collectors.toList())
             );
 
-            System.out.println("Timeout triggered - " + getSender() + ":" + msg.checkID);
+            logger.info("Timeout triggered - " + getSender() + ":" + msg.checkID);
             multicastToView(new ViewChangeMessage(updatedView), updatedView);
             getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
         }
@@ -108,7 +110,7 @@ public class GroupManager extends Node {
                         .collect(Collectors.toList())
                 );
 
-                System.out.println("Flush Timeout triggered");
+                logger.info("Flush Timeout triggered");
                 multicastToView(new ViewChangeMessage(updatedView), updatedView);
                 getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
             }
@@ -116,7 +118,7 @@ public class GroupManager extends Node {
     }
 
     private void onJoinMessage(JoinMessage msg) {
-        System.out.format("%s requested to join the system\n", getSender().path().name());
+        logger.info(getSender().path().name() + " requested to join the system");
         List<ActorRef> updatedMembers = new ArrayList<>(lastGeneratedView.members);
         updatedMembers.add(getSender());
 
@@ -128,7 +130,7 @@ public class GroupManager extends Node {
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
-        System.out.println("Join triggered");
+        logger.info("Join triggered");
         multicastToView(new ViewChangeMessage(updatedView), updatedView);
         getSelf().tell(new ViewChangeMessage(updatedView), getSelf());
 

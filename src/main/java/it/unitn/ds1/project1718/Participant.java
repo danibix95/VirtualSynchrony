@@ -4,6 +4,10 @@ import akka.actor.Props;
 import it.unitn.ds1.project1718.Messages.*;
 
 import java.time.Duration;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Participant extends Node {
     private int messageID;
@@ -42,6 +46,9 @@ public class Participant extends Node {
     protected void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
         this.actor2id = msg.actorMapping;
+
+        setLogger(Participant.class.getName() + "-" + msg.newID,
+            "node-" + msg.newID + ".log");
     }
 
     @Override
@@ -90,9 +97,9 @@ public class Participant extends Node {
     private void onSendDataMessage(SendDataMessage msg) {
         // TODO: if not crashed delay event
         if (this.allowSending && !this.crashed) {
-            System.out.format("%d send multicast %d within %d\n",
-                this.id, this.messageID, currentView.id);
-            DataMessage dataMessage = new DataMessage(messageID, this.id, currentView);
+            logger.info(this.id + " send multicast "
+                    + this.messageID + " within " + currentView.id);
+            DataMessage dataMessage = new DataMessage(messageID, this.id);
             multicast(dataMessage);
             this.messageID++;
 
@@ -118,6 +125,6 @@ public class Participant extends Node {
 
     private void onCrashMessage(CrashMessage msg) {
         this.crashed = true;
-        System.out.format("%d Crashed!\n", this.id);
+        logger.info(this.id + " crashed!");
     }
 }

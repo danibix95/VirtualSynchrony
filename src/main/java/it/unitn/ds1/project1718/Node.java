@@ -6,6 +6,10 @@ import it.unitn.ds1.project1718.Messages.*;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
 public abstract class Node extends AbstractActor {
@@ -14,7 +18,10 @@ public abstract class Node extends AbstractActor {
     protected HashMap<View,List<DataMessage>> unstableMessages = new HashMap<>();
     protected TreeMap<View,List<ActorRef>> receivedFlush = new TreeMap<>();
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
+    // TODO: update! YOU SHALL NOT PASS REFERENCES!
     protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
+
+    protected Logger logger = null;
 
     protected Random rnd = new Random();
 
@@ -47,6 +54,24 @@ public abstract class Node extends AbstractActor {
         @Override
         public int compareTo(View v) {
             return this.id - v.id;
+        }
+    }
+
+    protected void setLogger(String className, String filename) {
+        this.logger = Logger.getLogger(className);
+        this.logger.setLevel(Level.INFO);
+        FileHandler fh;
+        try {
+            fh = new FileHandler("vs-logs/" + filename);
+            System.setProperty("java.util.logging.SimpleFormatter.format",
+                "%5$s%6$s%n");
+            SimpleFormatter formatter = new SimpleFormatter();
+            fh.setFormatter(formatter);
+            this.logger.setUseParentHandlers(false);
+            this.logger.addHandler(fh);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -85,7 +110,7 @@ public abstract class Node extends AbstractActor {
 
     protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
         for (DataMessage m: messages) {
-            multicastToView(new A2AMessage(m.id, m.senderID, m.originalView), view);
+            multicastToView(new A2AMessage(m.id, m.senderID), view);
         }
     }
 
@@ -102,12 +127,12 @@ public abstract class Node extends AbstractActor {
                 View v = iter.next().getKey();
                 // install all the "open" views up to the completely installed one
                 if (v.compareTo(view) <= 0) {
-                    System.out.format(
-                            "%d install view %d %s\n",
-                            this.id,
-                            v.id,
-                            v.members.stream().map((m) -> String.valueOf(actor2id.get(m)))
-                                    .collect(Collectors.joining(","))
+                    logger.info(
+                            this.id + " install view "
+                            + v.id + " "
+                            + v.members.stream()
+                                .map((m) -> String.valueOf(actor2id.get(m)))
+                                .collect(Collectors.joining(","))
                     );
                     currentView = v;
                     iter.remove();
@@ -121,13 +146,11 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onDataMessage(DataMessage msg) {
-        // TODO: introduce delay between flushed and view install
-        System.out.format(
-            "%d deliver multicast %d from %d within %d\n",
-            this.id,
-            msg.id,
-            msg.senderID,
-            msg.originalView.id
+        logger.info(
+            this.id + " deliver multicast"
+            + msg.id + " from "
+            + msg.senderID + " within "
+            + currentView.id
         );
         if (!this.receivedMessages.containsKey(currentView)) {
             this.receivedMessages.put(currentView, new ArrayList<>());
@@ -141,21 +164,19 @@ public abstract class Node extends AbstractActor {
 
     protected void onStableMessage(StableMessage msg) {
         this.unstableMessages.remove(
-            new DataMessage(msg.messageID, msg.senderID, currentView)
+            new DataMessage(msg.messageID, msg.senderID)
         );
     }
 
     protected void onA2AMessage(A2AMessage msg) {
-        // TODO: why second boolean condition??
-        if(!receivedMessages.containsKey(msg) && msg.senderID != this.id) {
-            System.out.format(
-                    "A2A %d deliver multicast %d from %d within %d\n",
-                    this.id,
-                    msg.id,
-                    msg.senderID,
-                    msg.originalView.id
+        if(receivedMessages.containsKey(currentView) && msg.senderID != this.id) {
+            logger.info(
+                "A2A " + this.id + " deliver multicast"
+                    + msg.id + " from "
+                    + msg.senderID + " within "
+                    + currentView.id
             );
-            receivedMessages.get(msg.originalView).add(msg);
+            receivedMessages.get(currentView).add(msg);
         }
     }
 }

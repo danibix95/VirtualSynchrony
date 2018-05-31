@@ -27,11 +27,9 @@ public class Messages {
     public static class DataMessage implements Serializable {
         public final int id;
         public final int senderID;
-        public final View originalView;
-        public DataMessage(int id, int originalSender, View originalView) {
+        public DataMessage(int id, int originalSender) {
             this.id = id;
             this.senderID = originalSender;
-            this.originalView = originalView;
         }
 
         @Override
@@ -45,8 +43,8 @@ public class Messages {
     }
 
     public static class A2AMessage extends DataMessage {
-        public A2AMessage(int id, int originalSender, View originaView) {
-            super(id, originalSender, originaView);
+        public A2AMessage(int id, int originalSender) {
+            super(id, originalSender);
         }
     }
 
