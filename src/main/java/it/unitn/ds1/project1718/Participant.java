@@ -64,14 +64,14 @@ public class Participant extends Node {
 
     @Override
     protected void onStableMessage(StableMessage msg) {
-        if(!this.crashed) {
+        if (!this.crashed) {
             super.onStableMessage(msg);
         }
     }
 
     @Override
     protected void onDataMessage(DataMessage msg) {
-        if(!this.crashed) {
+        if (!this.crashed) {
             super.onDataMessage(msg);
         }
     }

@@ -55,7 +55,8 @@ public class VirtualSynchrony {
                 command = scanner.next();
                 switch (command) {
                     case "j" :
-                        ActorRef newActor = system.actorOf(Participant.props(), String.valueOf("node-" + id++));
+                        ActorRef newActor =
+                            system.actorOf(Participant.props(), String.valueOf("node-" + id++));
                         actorsGroup.add(newActor);
                         groupManager.tell(new JoinMessage(), newActor);
                         System.out.println("New actor joined!");
@@ -69,7 +70,8 @@ public class VirtualSynchrony {
                             else if (node < actorsGroup.size()) {
                                 ActorRef toCrash = actorsGroup.get(node);
                                 toCrash.tell(new CrashMessage(), ActorRef.noSender());
-                                System.out.println("Selected actor crashed!");
+                                System.out.println("Selected actor informed to crash."
+                                    + " Crash will happen in 5 seconds!");
                             }
                             else {
                                 System.out.println("Given actor doesn't exist or has already crashed!");

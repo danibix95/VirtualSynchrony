@@ -87,42 +87,47 @@ public class GroupManager extends Node {
         getSelf().tell(new ViewChangeMessage(newView, null), self);
     }
 
+    private void startViewChange(ActorRef timedOut, ActorRef self, String logMsg) {
+        lastViewID++;
+
+        View updatedView = new View(
+            lastViewID,
+            lastGeneratedView.members.stream()
+                .filter((actor) -> !actor.equals(timedOut))
+                .collect(Collectors.toList())
+        );
+
+        logger.info(logMsg);
+        sendViewChange(updatedView, self);
+    }
+
     private void onTimeout(TimeoutMessage msg) {
         // notice: the sender of this message was set as it was sent by the timed out node
         if (lastMessages.getOrDefault(getSender(), -1) == msg.checkID) {
-            lastViewID++;
-
-            View updatedView = new View(
-                lastViewID,
-                lastGeneratedView.members.stream()
-                    .filter((node) -> !node.equals(getSender()))
-                    .collect(Collectors.toList())
-            );
-
-            logger.info("Timeout triggered - " + getSender() + ":" + msg.checkID);
-            sendViewChange(updatedView, getSelf());
+             startViewChange(
+                 getSender(),
+                 getSelf(),
+                 "Timeout triggered - " + getSender() + ":" + msg.checkID
+             );
         }
     }
 
     private void onFlushTimeout(FlushTimeoutMessage msg) {
         if (receivedFlush.containsKey(msg.view)) {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
-                View updatedView = new View(
-                    lastViewID,
-                    lastGeneratedView.members.stream()
-                        .filter((node) -> !node.equals(getSender()))
-                        .collect(Collectors.toList())
+                startViewChange(
+                    getSender(),
+                    getSelf(),
+                    "Flush Timeout triggered"
                 );
-
-                logger.info("Flush Timeout triggered");
-                sendViewChange(updatedView, getSelf());
             }
         }
     }
 
     private void onJoinMessage(JoinMessage msg) {
         logger.info(getSender().path().name() + " requested to join the system");
-        List<ActorRef> updatedMembers = new ArrayList<>(lastGeneratedView.members);
+        List<ActorRef> updatedMembers =
+            new ArrayList<>(lastGeneratedView.members);
         updatedMembers.add(getSender());
 
         // assign the ID to the requesting node
