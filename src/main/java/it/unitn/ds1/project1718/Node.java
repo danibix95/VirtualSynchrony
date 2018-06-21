@@ -162,7 +162,7 @@ public abstract class Node extends AbstractActor {
                 }
                 else break;
             }
-            return true;
+            return this.receivedFlush.isEmpty();
         }
         return false;
     }
@@ -227,9 +227,8 @@ public abstract class Node extends AbstractActor {
     protected void onA2AMessage(A2AMessage msg) {
         ActorRef sender = getSender();
         View senderView = fromWhichView(sender);
-        if (receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
+        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
             if (senderView == this.currentView) {
-                logger.info("A2A");
                 deliver(msg);
             }
             else {

@@ -49,8 +49,8 @@ public class Participant extends Node {
     @Override
     protected boolean onFlushMessage(FlushMessage msg){
         if (!this.crashed) {
-            boolean viewInstalled = super.onFlushMessage(msg);
-            if (viewInstalled) {
+            boolean allViewInstalled = super.onFlushMessage(msg);
+            if (allViewInstalled) {
                 this.allowSending = true;
                 if (this.justEntered) {
                     this.justEntered = false;
