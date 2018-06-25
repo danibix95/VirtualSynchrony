@@ -101,4 +101,10 @@ public class Messages {
     public static class SendDataMessage implements Serializable {}
 
     public static class CrashMessage implements Serializable {}
+
+    public static class CrashWhileSendingMessage implements Serializable {}
+
+    public static class CrashAfterReceiveMessage implements Serializable {}
+
+    public static class CrashOnViewChangeMessage implements Serializable {}
 }
