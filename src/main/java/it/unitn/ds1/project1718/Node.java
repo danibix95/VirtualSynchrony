@@ -219,9 +219,10 @@ public abstract class Node extends AbstractActor {
     }
 
     protected void onStableMessage(StableMessage msg) {
-        this.unstableMessages.remove(
-            new DataMessage(msg.messageID, msg.senderID)
-        );
+        List<DataMessage> l= this.unstableMessages.get(fromWhichView(getSender()));
+        if(l!=null){
+            l.remove(new DataMessage(msg.messageID, msg.senderID));
+        }
     }
 
     protected void onA2AMessage(A2AMessage msg) {
