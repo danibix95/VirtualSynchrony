@@ -3,6 +3,9 @@ package it.unitn.ds1.project1718;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import it.unitn.ds1.project1718.Messages.CrashMessage;
+import it.unitn.ds1.project1718.Messages.CrashWhileSendingMessage;
+import it.unitn.ds1.project1718.Messages.CrashAfterReceiveMessage;
+import it.unitn.ds1.project1718.Messages.CrashOnViewChangeMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
 
@@ -27,9 +30,9 @@ public class VirtualSynchrony {
 
         // initial ID for group currentView
         int id = 1;
-        List<ActorRef> actorsGroup = new ArrayList<>();
+        HashMap<Integer, ActorRef> actorsGroup = new HashMap<>();
         for (; id <= PARTICIPANTS; id++) {
-            actorsGroup.add(system.actorOf(
+            actorsGroup.put(id, system.actorOf(
                 Participant.props(),
                 String.valueOf("node-" + id))
             );
@@ -38,9 +41,7 @@ public class VirtualSynchrony {
         // insert the group manager in the initial view
         groupManager.tell(new StartMessage(groupManager), ActorRef.noSender());
 
-        for (ActorRef member : actorsGroup) {
-            groupManager.tell(new JoinMessage(), member);
-        }
+        actorsGroup.forEach((k, actor) -> groupManager.tell(new JoinMessage(), actor));
 
         try {
             String command = "";
@@ -54,36 +55,26 @@ public class VirtualSynchrony {
                 System.out.println("Insert next command:");
                 command = scanner.next();
                 switch (command) {
-                    case "j" :
+                    case "j":
                         ActorRef newActor =
-                            system.actorOf(Participant.props(), String.valueOf("node-" + id++));
-                        actorsGroup.add(newActor);
+                            system.actorOf(Participant.props(), String.valueOf("node-" + id));
+                        actorsGroup.putIfAbsent(id, newActor);
                         groupManager.tell(new JoinMessage(), newActor);
-                        System.out.println("New actor joined!");
+                        System.out.println("New actor (" + id  + ") joined!");
+
+                        id++;
                         break;
-                    case "c" :
-                        try {
-                            int node = scanner.nextInt()-1;
-                            if (node < 0) {
-                                System.out.println("Given actor doesn't exist!");
-                            }
-                            else if (node < actorsGroup.size()) {
-                                ActorRef toCrash = actorsGroup.get(node);
-                                toCrash.tell(new CrashMessage(), ActorRef.noSender());
-                                System.out.println("Selected actor informed to crash."
-                                    + " Crash will happen in 5 seconds!");
-                            }
-                            else {
-                                System.out.println("Given actor doesn't exist or has already crashed!");
-                            }
-                        }
-                        catch (InputMismatchException ime) {
-                            System.out.println("\nYou've not passed an integer id!");
-                            scanner.skip(".*");
-                        }
-                        catch (NoSuchElementException nsee) {
-                            System.out.println("\nNo input passed!");
-                        }
+                    case "c":
+                        manageCrashMessage(scanner, actorsGroup, new CrashMessage());
+                        break;
+                    case "cs":
+                        manageCrashMessage(scanner, actorsGroup, new CrashWhileSendingMessage());
+                        break;
+                    case "cr":
+                        manageCrashMessage(scanner, actorsGroup, new CrashAfterReceiveMessage());
+                        break;
+                    case "cv":
+                        manageCrashMessage(scanner, actorsGroup, new CrashOnViewChangeMessage());
                         break;
                     case "e":
                         System.out.println("Exit...");
@@ -96,5 +87,27 @@ public class VirtualSynchrony {
         }
         catch (IllegalStateException ise) {}
         system.terminate();
+    }
+
+    private static void manageCrashMessage(Scanner scr, HashMap<Integer, ActorRef> actors, CrashMessage msg) {
+        try {
+            int node = scr.nextInt()-1;
+            ActorRef toCrash = actors.remove(node);
+            if (toCrash != null) {
+                toCrash.tell(msg, ActorRef.noSender());
+                System.out.println("Selected actor informed to crash."
+                    + " Crash will happen in 5 seconds!");
+            }
+            else {
+                System.out.println("Given actor doesn't exist!");
+            }
+        }
+        catch (InputMismatchException ime) {
+            System.out.println("\nYou've not passed an integer id!");
+            scr.skip(".*");
+        }
+        catch (NoSuchElementException nsee) {
+            System.out.println("\nNo input passed!");
+        }
     }
 }

@@ -102,9 +102,9 @@ public class Messages {
 
     public static class CrashMessage implements Serializable {}
 
-    public static class CrashWhileSendingMessage implements Serializable {}
+    public static class CrashWhileSendingMessage extends CrashMessage {}
 
-    public static class CrashAfterReceiveMessage implements Serializable {}
+    public static class CrashAfterReceiveMessage extends CrashMessage {}
 
-    public static class CrashOnViewChangeMessage implements Serializable {}
+    public static class CrashOnViewChangeMessage extends CrashMessage {}
 }
