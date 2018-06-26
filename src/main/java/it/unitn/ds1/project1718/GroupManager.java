@@ -16,6 +16,7 @@ public class GroupManager extends Node {
     private final static int MULTICAST_TIMEOUT = 5500;
     private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
     private View lastGeneratedView;
+    private boolean checkTimeouts = false;
 
     public GroupManager() {
         super();
@@ -70,6 +71,16 @@ public class GroupManager extends Node {
         logger.info("Group Manager initialized with view " + currentView.id);
     }
 
+    @Override
+    protected boolean onFlushMessage(FlushMessage msg){
+        boolean allViewInstalled = super.onFlushMessage(msg);
+        if (allViewInstalled) {
+            checkTimeouts = false;
+            return true;
+        }
+        return false;
+    }
+
     protected void onDataMessage(DataMessage msg) {
         super.onDataMessage(msg);
         lastMessages.put(getSender(), msg.id);
@@ -102,19 +113,26 @@ public class GroupManager extends Node {
     }
 
     private void onTimeout(TimeoutMessage msg) {
-        // notice: the sender of this message was set as it was sent by the timed out node
-        if (lastMessages.getOrDefault(getSender(), -1) == msg.checkID) {
-             startViewChange(
-                 getSender(),
-                 getSelf(),
-                 "Timeout triggered - " + getSender() + ":" + msg.checkID
-             );
+        if (!checkTimeouts) {
+            // notice: the sender of this message was set as it was sent by the timed out node
+            if (lastMessages.getOrDefault(getSender(), -1) == msg.checkID) {
+                startViewChange(
+                    getSender(),
+                    getSelf(),
+                    "Timeout triggered - " + getSender() + ":" + msg.checkID
+                );
+            }
+        }
+        else {
+            // reschedule the timeout for this message
+            scheduleTimeout(msg.checkID, getSender());
         }
     }
 
     private void onFlushTimeout(FlushTimeoutMessage msg) {
         if (receivedFlush.containsKey(msg.view)) {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
+                checkTimeouts = true;
                 startViewChange(
                     getSender(),
                     getSelf(),
