@@ -14,7 +14,7 @@ public class Participant extends Node {
     private boolean allowSending;
     private boolean crashed;
     private boolean crashSending = false;
-    private boolean crashReceiveing = false;
+    private boolean crashReceiving = false;
     private boolean crashOnViewChange = false;
 
     public Participant() {
@@ -37,8 +37,8 @@ public class Participant extends Node {
         .match(FlushMessage.class, this::onFlushMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
-        .match(CrashWhileSendingMessage.class, this::onCrashWhileSendingMessage)
-        .match(CrashAfterReceiveMessage.class, this::onCrashAfterReceiveMessage)
+        .match(CrashSendingMessage.class, this::onCrashWhileSendingMessage)
+        .match(CrashReceivingMessage.class, this::onCrashAfterReceiveMessage)
         .match(CrashOnViewChangeMessage.class, this::onCrashOnViewChangeMessage)
         .match(CrashMessage.class, this::onCrashMessage)
         .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
@@ -46,6 +46,9 @@ public class Participant extends Node {
         .build();
     }
 
+    /** Send a multicast only to half of the current group
+     *  and then set itself as being crashed.
+     * */
     private void multicastCrashing(Serializable m) {
         View subsetView = new View(
             currentView.id,
@@ -55,7 +58,7 @@ public class Participant extends Node {
         crashed = true;
     }
 
-    protected void onAssignIDMessage(AssignIDMessage msg) {
+    private void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
 
         setLogger(Participant.class.getName() + "-" + msg.newID,
@@ -67,9 +70,9 @@ public class Participant extends Node {
         if (!crashed) {
             boolean allViewInstalled = super.onFlushMessage(msg);
             if (allViewInstalled) {
-                this.allowSending = true;
-                if (this.justEntered) {
-                    this.justEntered = false;
+                allowSending = true;
+                if (justEntered) {
+                    justEntered = false;
                     getSelf().tell(new SendDataMessage(), getSelf());
                 }
                 return true;
@@ -86,10 +89,9 @@ public class Participant extends Node {
     @Override
     protected void onDataMessage(DataMessage msg) {
         if (!crashed) {
-            // TODO crash before or after??
             super.onDataMessage(msg);
 
-            if (crashReceiveing) crashed = true;
+            if (crashReceiving) crashed = true;
         }
     }
 
@@ -101,10 +103,9 @@ public class Participant extends Node {
     @Override
     protected void onViewChangeMessage(ViewChangeMessage msg) {
         if (!crashed) {
-            // clear actor mapping and set the new one coming from GroupManager
             msg.actorMapping.forEach((k, v) -> actor2id.put(k, v));
 
-            this.allowSending = false;
+            allowSending = false;
             super.onViewChangeMessage(msg);
 
             // TODO: should it has to crash before or after sending flushes?
@@ -113,7 +114,7 @@ public class Participant extends Node {
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        if(!crashed){
+        if (!crashed) {
             if (allowSending) {
                 logger.info(this.id + " send multicast "
                     + this.messageID + " within " + currentView.id);
@@ -154,13 +155,13 @@ public class Participant extends Node {
         logger.info(this.id + " crashed!");
     }
 
-    private void onCrashWhileSendingMessage(CrashWhileSendingMessage msg) {
+    private void onCrashWhileSendingMessage(CrashSendingMessage msg) {
         crashSending = true;
         logger.info(this.id + " going to crash on next multicast!");
     }
 
-    private void onCrashAfterReceiveMessage(CrashAfterReceiveMessage msg) {
-        crashReceiveing = true;
+    private void onCrashAfterReceiveMessage(CrashReceivingMessage msg) {
+        crashReceiving = true;
         logger.info(this.id + " going to crash on next receiving!");
     }
 
