@@ -75,16 +75,6 @@ public class GroupManager extends Node {
         logger.info("Group Manager initialized with view " + currentView.id);
     }
 
-    @Override
-    protected boolean onFlushMessage(FlushMessage msg){
-        boolean allViewInstalled = super.onFlushMessage(msg);
-        if (allViewInstalled) {
-            rescheduleTimeouts = false;
-            return true;
-        }
-        return false;
-    }
-
     private void sendViewChange(View newView, ActorRef self) {
         multicastToView(new ViewChangeMessage(newView, actor2id), newView);
         getSelf().tell(new ViewChangeMessage(newView, null), self);
@@ -100,36 +90,33 @@ public class GroupManager extends Node {
                 .collect(Collectors.toList())
         );
 
+        // update the latest
+        lastGeneratedView = updatedView;
+
         logger.info(logMsg);
         sendViewChange(updatedView, self);
     }
 
     private void onHeartbeatMessage(HeartbeatMessage msg) {
         lastBeat.put(getSender(), msg.id);
-        scheduleTimeout(msg.id, getSender());
     }
 
     private void onTimeout(TimeoutMessage msg) {
-        if (!rescheduleTimeouts) {
-            if (lastBeat.get(getSender()) == msg.lastBeatID) {
-                startViewChange(
-                    getSender(),
-                    getSelf(),
-                    "Timeout triggered - " + getSender()
-                );
-            }
+        if (lastBeat.get(getSender()) <= msg.lastBeatID) {
+            startViewChange(
+                getSender(),
+                getSelf(),
+                "Timeout triggered - " + getSender()
+            );
         }
         else {
-            // reschedule again the timeout for this message
-            // in case a flush timeout was triggered
-            scheduleTimeout(msg.lastBeatID, getSender());
+            scheduleTimeout(lastBeat.get(getSender()), getSender());
         }
     }
 
     private void onFlushTimeout(FlushTimeoutMessage msg) {
         if (receivedFlush.containsKey(msg.view)) {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
-                rescheduleTimeouts = true;
                 startViewChange(
                     getSender(),
                     getSelf(),
@@ -148,6 +135,8 @@ public class GroupManager extends Node {
         lastAssignedID++;
         actor2id.put(getSender(), lastAssignedID);
         getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
+        // -1 to be sure that first check does not fail
+        scheduleTimeout(-1, getSender());
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
