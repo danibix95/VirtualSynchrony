@@ -3,6 +3,9 @@ package it.unitn.ds1.project1718;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import it.unitn.ds1.project1718.Messages.CrashMessage;
+import it.unitn.ds1.project1718.Messages.CrashSendingMessage;
+import it.unitn.ds1.project1718.Messages.CrashReceivingMessage;
+import it.unitn.ds1.project1718.Messages.CrashOnViewChangeMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
 
@@ -13,7 +16,6 @@ public class VirtualSynchrony {
     private final static int PARTICIPANTS = 3;
 
     public static void main(String[] args) {
-        // create logs folder
         try {
             new File("vs-logs").mkdir();
         }
@@ -25,11 +27,11 @@ public class VirtualSynchrony {
 
         ActorRef groupManager = system.actorOf(GroupManager.props(), "0");
 
-        // initial ID for group currentView
+        // id counter used to keep track of ActorRef
         int id = 1;
-        List<ActorRef> actorsGroup = new ArrayList<>();
+        HashMap<Integer, ActorRef> actorsGroup = new HashMap<>();
         for (; id <= PARTICIPANTS; id++) {
-            actorsGroup.add(system.actorOf(
+            actorsGroup.put(id, system.actorOf(
                 Participant.props(),
                 String.valueOf("node-" + id))
             );
@@ -38,50 +40,52 @@ public class VirtualSynchrony {
         // insert the group manager in the initial view
         groupManager.tell(new StartMessage(groupManager), ActorRef.noSender());
 
-        for (ActorRef member : actorsGroup) {
-            groupManager.tell(new JoinMessage(), member);
-        }
+        actorsGroup.forEach((k, actor) -> groupManager.tell(new JoinMessage(), actor));
 
+        // menu that manages external interaction with the system
         try {
             String command = "";
             Scanner scanner = new Scanner(System.in);
             System.out.println("Commands:\n"
-                + "\te   -> exit\n"
-                + "\tj   -> create new node and join to the group\n"
-                + "\tc x -> set node x in a crashed state\n"
+                + "\te    -> exit\n"
+                + "\tj    -> create new node and join it to the group\n"
+                + "\tc  x -> set node x in a crashed state\n"
+                + "\tcs x -> set node x in a crashed state while it is sending a message\n"
+                + "\tcr x -> set node x in a crashed state while it is receiving a message\n"
+                + "\tcv x -> set node x in a crashed state while it is changing view\n"
             );
             while (!command.equals("e")) {
                 System.out.println("Insert next command:");
                 command = scanner.next();
                 switch (command) {
-                    case "j" :
-                        ActorRef newActor = system.actorOf(Participant.props(), String.valueOf("node-" + id++));
-                        actorsGroup.add(newActor);
+                    case "j":
+                        ActorRef newActor =
+                            system.actorOf(Participant.props(), String.valueOf("node-" + id));
+                        actorsGroup.putIfAbsent(id, newActor);
                         groupManager.tell(new JoinMessage(), newActor);
-                        System.out.println("New actor joined!");
+                        System.out.println("New actor (" + id  + ") joined!");
+
+                        id++;
                         break;
-                    case "c" :
-                        try {
-                            int node = scanner.nextInt()-1;
-                            if (node < 0) {
-                                System.out.println("Given actor doesn't exist!");
-                            }
-                            else if (node < actorsGroup.size()) {
-                                ActorRef toCrash = actorsGroup.get(node);
-                                toCrash.tell(new CrashMessage(), ActorRef.noSender());
-                                System.out.println("Selected actor crashed!");
-                            }
-                            else {
-                                System.out.println("Given actor doesn't exist or has already crashed!");
-                            }
-                        }
-                        catch (InputMismatchException ime) {
-                            System.out.println("\nYou've not passed an integer id!");
-                            scanner.skip(".*");
-                        }
-                        catch (NoSuchElementException nsee) {
-                            System.out.println("\nNo input passed!");
-                        }
+                    case "c":
+                        manageCrashMessage(scanner, actorsGroup,
+                            new CrashMessage("soon!")
+                        );
+                        break;
+                    case "cs":
+                        manageCrashMessage(scanner, actorsGroup,
+                            new CrashSendingMessage("\"on next multicast!\"")
+                        );
+                        break;
+                    case "cr":
+                        manageCrashMessage(scanner, actorsGroup,
+                            new CrashReceivingMessage("\"on receiving next message!\"")
+                        );
+                        break;
+                    case "cv":
+                        manageCrashMessage(scanner, actorsGroup,
+                            new CrashOnViewChangeMessage("on next view change!")
+                        );
                         break;
                     case "e":
                         System.out.println("Exit...");
@@ -94,5 +98,30 @@ public class VirtualSynchrony {
         }
         catch (IllegalStateException ise) {}
         system.terminate();
+    }
+
+    /** Send given crash message to selected actor
+    *   and update the tracking structure removing it. */
+    private static void manageCrashMessage(Scanner scr,
+        HashMap<Integer, ActorRef> actors, CrashMessage msg) {
+
+        try {
+            int node = scr.nextInt();
+            ActorRef toCrash = actors.remove(node);
+            if (toCrash != null) {
+                toCrash.tell(msg, ActorRef.noSender());
+                System.out.println("Selected actor will crash " + msg.info);
+            }
+            else {
+                System.out.println("Given actor doesn't exist!");
+            }
+        }
+        catch (InputMismatchException ime) {
+            System.out.println("\nYou've not passed an integer id!");
+            scr.skip(".*");
+        }
+        catch (NoSuchElementException nsee) {
+            System.out.println("\nNo input passed!");
+        }
     }
 }

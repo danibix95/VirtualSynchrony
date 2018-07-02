@@ -76,7 +76,7 @@ gradle-app.setting
 # gradle/wrapper/gradle-wrapper.properties
 
 # other files
-description.pdf
+description*.pdf
 Cstyle.pdf
 .idea
 vs-logs

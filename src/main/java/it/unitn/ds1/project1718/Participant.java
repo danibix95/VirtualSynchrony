@@ -3,6 +3,7 @@ package it.unitn.ds1.project1718;
 import akka.actor.Props;
 import it.unitn.ds1.project1718.Messages.*;
 
+import java.io.Serializable;
 import java.time.Duration;
 
 public class Participant extends Node {
@@ -12,6 +13,9 @@ public class Participant extends Node {
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
+    private boolean crashSending = false;
+    private boolean crashReceiving = false;
+    private boolean crashOnViewChange = false;
 
     public Participant() {
         super();
@@ -33,13 +37,28 @@ public class Participant extends Node {
         .match(FlushMessage.class, this::onFlushMessage)
         .match(StableMessage.class, this::onStableMessage)
         .match(SendDataMessage.class, this::onSendDataMessage)
+        .match(CrashSendingMessage.class, this::onCrashWhileSendingMessage)
+        .match(CrashReceivingMessage.class, this::onCrashAfterReceiveMessage)
+        .match(CrashOnViewChangeMessage.class, this::onCrashOnViewChangeMessage)
         .match(CrashMessage.class, this::onCrashMessage)
         .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
         .match(DataMessage.class, this::onDataMessage)          // hierarchical overshadowing
         .build();
     }
 
-    protected void onAssignIDMessage(AssignIDMessage msg) {
+    /** Send a multicast only to half of the current group
+     *  and then set itself as being crashed.
+     * */
+    private void multicastCrashing(Serializable m) {
+        View subsetView = new View(
+            currentView.id,
+            currentView.members.subList(0, currentView.members.size()/2)
+        );
+        multicastToView(m, subsetView);
+        crashed = true;
+    }
+
+    private void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
 
         setLogger(Participant.class.getName() + "-" + msg.newID,
@@ -48,12 +67,12 @@ public class Participant extends Node {
 
     @Override
     protected boolean onFlushMessage(FlushMessage msg){
-        if (!this.crashed) {
-            boolean viewInstalled = super.onFlushMessage(msg);
-            if (viewInstalled) {
-                this.allowSending = true;
-                if (this.justEntered) {
-                    this.justEntered = false;
+        if (!crashed) {
+            boolean allViewInstalled = super.onFlushMessage(msg);
+            if (allViewInstalled) {
+                allowSending = true;
+                if (justEntered) {
+                    justEntered = false;
                     getSelf().tell(new SendDataMessage(), getSelf());
                 }
                 return true;
@@ -64,45 +83,53 @@ public class Participant extends Node {
 
     @Override
     protected void onStableMessage(StableMessage msg) {
-        if(!this.crashed) {
-            super.onStableMessage(msg);
-        }
+        if (!crashed) super.onStableMessage(msg);
     }
 
     @Override
     protected void onDataMessage(DataMessage msg) {
-        if(!this.crashed) {
+        if (!crashed) {
             super.onDataMessage(msg);
+
+            if (crashReceiving) crashed = true;
         }
     }
 
     @Override
     protected void onA2AMessage(A2AMessage msg) {
-        if (!justEntered && !this.crashed) super.onA2AMessage(msg);
+        if (!justEntered && !crashed) super.onA2AMessage(msg);
     }
 
     @Override
     protected void onViewChangeMessage(ViewChangeMessage msg) {
-        if (!this.crashed) {
-            // clear actor mapping and set the new one coming from GroupManager
-            msg.actorMapping.forEach((k, v) ->  actor2id.put(k, v));
+        if (!crashed) {
+            msg.actorMapping.forEach((k, v) -> actor2id.put(k, v));
 
-            this.allowSending = false;
+            allowSending = false;
             super.onViewChangeMessage(msg);
+
+            // TODO: should it has to crash before or after sending flushes?
+            if (crashOnViewChange) crashed = true;
         }
     }
 
     private void onSendDataMessage(SendDataMessage msg) {
-        if(!this.crashed){
-            if (this.allowSending) {
+        if (!crashed) {
+            if (allowSending) {
                 logger.info(this.id + " send multicast "
                     + this.messageID + " within " + currentView.id);
                 DataMessage dataMessage = new DataMessage(messageID, this.id);
-                multicast(dataMessage);
+
+                if (crashSending) {
+                    multicastCrashing(dataMessage);
+                }
+                else {
+                    multicast(dataMessage);
+                    this.messageID++;
+                    multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
+                }
                 this.messageID++;
 
-                multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
-                this.messageID++;
             }
             // wait anyway; if allowSending==false it's just  a postponed action
             waitIntervalToSend();
@@ -124,7 +151,22 @@ public class Participant extends Node {
     }
 
     private void onCrashMessage(CrashMessage msg) {
-        this.crashed = true;
+        crashed = true;
         logger.info(this.id + " crashed!");
+    }
+
+    private void onCrashWhileSendingMessage(CrashSendingMessage msg) {
+        crashSending = true;
+        logger.info(this.id + " going to crash on next multicast!");
+    }
+
+    private void onCrashAfterReceiveMessage(CrashReceivingMessage msg) {
+        crashReceiving = true;
+        logger.info(this.id + " going to crash on next receiving!");
+    }
+
+    private void onCrashOnViewChangeMessage(CrashOnViewChangeMessage msg) {
+        crashOnViewChange = true;
+        logger.info(this.id + " going to crash on next view change!");
     }
 }

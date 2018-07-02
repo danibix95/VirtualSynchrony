@@ -133,9 +133,13 @@ public abstract class Node extends AbstractActor {
             receivedFlush.put(view, new ArrayList<>());
         }
         receivedFlush.get(view).add(getSender());
+
         if (receivedFlush.get(view).containsAll(view.members)) {
-            // install new view
-            Iterator<Map.Entry<View,List<ActorRef>>> iter = receivedFlush.entrySet().iterator();
+            // all the flush messages has arrived for this view.
+            // It is time to install this view.
+            Iterator<Map.Entry<View, List<ActorRef>>> iter =
+                receivedFlush.entrySet().iterator();
+
             while (iter.hasNext()) {
                 View v = iter.next().getKey();
                 // install all the "open" views up to the completely installed one
@@ -147,44 +151,43 @@ public abstract class Node extends AbstractActor {
                                 .map((m) -> String.valueOf(actor2id.get(m)))
                                 .collect(Collectors.joining(","))
                     );
-                    this.currentView = v;
+                    currentView = v;
                     iter.remove();
                     unstableMessages.remove(v);
-                    // deliver messages waiting for the viewInstall
-                    List<DataMessage> queue = this.waitToDeliver.get(v);
-                    if(queue!=null){
-                        for(DataMessage m: queue){
-                            //System.out.print("From Q ");
-                            deliver(m);
-                        }
+                    // deliver messages waiting for the view installation
+                    List<DataMessage> queue = waitToDeliver.get(v);
+                    // TODO: should we deliver also stable messages (i.e. put also them in the queue)?
+                    if (queue != null) {
+                        for (DataMessage m : queue) deliver(m);
                     }
-                    this.waitToDeliver.remove(v);
+                    waitToDeliver.remove(v);
                 }
                 else break;
             }
-            return true;
+            // maybe this must be explained explicit
+            return receivedFlush.isEmpty();
         }
         return false;
     }
 
     private View fromWhichView(ActorRef sender) {
         if (!receivedFlush.keySet().isEmpty()) {
-            // find the last flush i've got from said process
+            // find the last flush it has been received from given actor
             TreeMap<View,List<ActorRef>> rev = new TreeMap<>(Collections.reverseOrder());
             rev.putAll(receivedFlush);
 
-            for (Map.Entry<View,List<ActorRef>> entry:rev.entrySet()) {
+            for (Map.Entry<View,List<ActorRef>> entry : rev.entrySet()) {
                 List<ActorRef> recFlush = entry.getValue();
 
-                if(recFlush.contains(sender)) {
-                    // as soon as I find a flush(the latest) i return the view for which it has been sent
+                if (recFlush.contains(sender)) {
+                    // as soon as a flush is found (the latest one)
+                    // returns the view for which it has been sent
                     return entry.getKey();
                 }
             }
-            // if I don't find any flush from the given node -> still current view
         }
-        // the same view; no view change has been triggered
-        return this.currentView;
+        // no view change has been found
+        return currentView;
     }
 
     private void deliver(DataMessage msg) {
@@ -194,46 +197,45 @@ public abstract class Node extends AbstractActor {
                 + msg.senderID + " within "
                 + currentView.id
         );
-        if (!this.receivedMessages.containsKey(this.currentView)) {
-            this.receivedMessages.put(this.currentView, new ArrayList<>());
+        if (!receivedMessages.containsKey(currentView)) {
+            receivedMessages.put(currentView, new ArrayList<>());
         }
-        this.receivedMessages.get(this.currentView).add(msg);
+        receivedMessages.get(currentView).add(msg);
     }
 
     protected void onDataMessage(DataMessage msg) {
         View senderView = fromWhichView(getSender());
-        if (senderView == this.currentView) {
+        if (senderView == currentView) {
             deliver(msg);
         }
         else {
-            if (!this.waitToDeliver.containsKey(senderView)) {
-                this.waitToDeliver.put(senderView, new ArrayList<>());
+            if (!waitToDeliver.containsKey(senderView)) {
+                waitToDeliver.put(senderView, new ArrayList<>());
             }
-            this.waitToDeliver.get(senderView).add(msg);
+            waitToDeliver.get(senderView).add(msg);
         }
 
-        if (!this.unstableMessages.containsKey(senderView)) {
-            this.unstableMessages.put(senderView, new ArrayList<>());
+        if (!unstableMessages.containsKey(senderView)) {
+            unstableMessages.put(senderView, new ArrayList<>());
         }
-        this.unstableMessages.get(senderView).add(msg);
+        unstableMessages.get(senderView).add(msg);
     }
 
     protected void onStableMessage(StableMessage msg) {
-        this.unstableMessages.remove(
-            new DataMessage(msg.messageID, msg.senderID)
-        );
+        List<DataMessage> l = unstableMessages.get(fromWhichView(getSender()));
+        if (l != null) {
+            l.remove(new DataMessage(msg.messageID, msg.senderID));
+        }
     }
 
     protected void onA2AMessage(A2AMessage msg) {
-        ActorRef sender = getSender();
-        View senderView = fromWhichView(sender);
-        if (receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
-            if (senderView == this.currentView) {
-                logger.info("A2A");
+        View senderView = fromWhichView(getSender());
+        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
+            if (senderView == currentView) {
                 deliver(msg);
             }
             else {
-                this.waitToDeliver.get(senderView).add(msg);
+                waitToDeliver.get(senderView).add(msg);
             }
         }
     }

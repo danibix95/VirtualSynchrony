@@ -32,7 +32,7 @@ public class Messages {
 
         @Override
         public boolean equals(Object o) {
-            if (o instanceof  DataMessage) {
+            if (o instanceof DataMessage) {
                 return ((DataMessage)o).id == this.id
                     && ((DataMessage)o).senderID == this.senderID;
             }
@@ -40,6 +40,7 @@ public class Messages {
         }
     }
 
+    // message used during data exchange before flush message is sent
     public static class A2AMessage extends DataMessage {
         public A2AMessage(int id, int originalSender) {
             super(id, originalSender);
@@ -100,5 +101,29 @@ public class Messages {
 
     public static class SendDataMessage implements Serializable {}
 
-    public static class CrashMessage implements Serializable {}
+    public static class CrashMessage implements Serializable {
+        public String info;
+
+        public CrashMessage(String info) {
+            this.info = info;
+        }
+    }
+
+    public static class CrashSendingMessage extends CrashMessage {
+        public CrashSendingMessage(String info) {
+            super(info);
+        }
+    }
+
+    public static class CrashReceivingMessage extends CrashMessage {
+        public CrashReceivingMessage(String info) {
+            super(info);
+        }
+    }
+
+    public static class CrashOnViewChangeMessage extends CrashMessage {
+        public CrashOnViewChangeMessage(String info) {
+            super(info);
+        }
+    }
 }
