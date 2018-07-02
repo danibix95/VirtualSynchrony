@@ -77,17 +77,17 @@ public class Messages {
     public static class JoinMessage implements Serializable {}
 
     public static abstract class Timeout implements Serializable {
-        public final ActorRef senderID;
-        public Timeout(ActorRef senderID) {
-            this.senderID = senderID;
+        public final ActorRef sender;
+        public Timeout(ActorRef sender) {
+            this.sender = sender;
         }
     }
 
     public static class TimeoutMessage extends Timeout {
-        public final int checkID;
-        public TimeoutMessage(int id, ActorRef messageSender) {
+        public int lastBeatID;
+        public TimeoutMessage(int lastBeatID, ActorRef messageSender) {
             super(messageSender);
-            this.checkID = id;
+            this.lastBeatID = lastBeatID;
         }
     }
 
@@ -96,6 +96,14 @@ public class Messages {
         public FlushTimeoutMessage (View view, ActorRef messageSender) {
             super(messageSender);
             this.view = view;
+        }
+    }
+
+    public static class HeartbeatMessage implements Serializable {
+        public int id;
+
+        public HeartbeatMessage(int id) {
+            this.id = id;
         }
     }
 
