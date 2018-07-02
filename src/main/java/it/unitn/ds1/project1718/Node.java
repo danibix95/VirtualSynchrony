@@ -18,6 +18,7 @@ public abstract class Node extends AbstractActor {
     protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
     protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
     protected HashMap<View,List<DataMessage>> waitToDeliver = new HashMap<>();
+    protected final int HB_INTERVAL = 2000;
 
     protected Logger logger = null;
 
@@ -232,6 +233,7 @@ public abstract class Node extends AbstractActor {
         View senderView = fromWhichView(getSender());
         if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
             if (senderView == currentView) {
+                // TODO: check A2A -> maybe it's not working!
                 deliver(msg);
             }
             else {
