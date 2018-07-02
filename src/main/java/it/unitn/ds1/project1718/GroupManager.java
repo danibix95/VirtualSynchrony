@@ -13,11 +13,12 @@ import java.util.stream.Collectors;
 public class GroupManager extends Node {
     private int lastViewID = 0;
     private int lastAssignedID = 0;
-    private final static int MULTICAST_TIMEOUT = 5500;
-    private HashMap<ActorRef, Integer> lastMessages = new HashMap<>();
+    private final int TIMEOUT = 5500;
+    private HashMap<ActorRef, Integer> lastBeat = new HashMap<>();
     private View lastGeneratedView;
     // this variable control if data timeouts must be rescheduled
     // once a flush message is received
+    // TODO: need to review this part!
     private boolean rescheduleTimeouts = false;
 
     public GroupManager() {
@@ -39,16 +40,17 @@ public class GroupManager extends Node {
             .match(ViewChangeMessage.class, this::onViewChangeMessage)
             .match(FlushMessage.class, this::onFlushMessage)
             .match(JoinMessage.class, this::onJoinMessage)
+            .match(HeartbeatMessage.class, this::onHeartbeatMessage)
             .match(A2AMessage.class, this::onA2AMessage)        // binding of A2A MUST be before DataMessage
             .match(DataMessage.class, this::onDataMessage)      // hierarchical overshadowing
             .build();
     }
 
-    private void scheduleTimeout(int messageID, ActorRef sender) {
+    private void scheduleTimeout(int lastBeatID, ActorRef sender) {
         getContext().system().scheduler().scheduleOnce(
-            Duration.ofMillis(MULTICAST_TIMEOUT),
+            Duration.ofMillis(TIMEOUT),
             getSelf(),
-            new TimeoutMessage(messageID, sender),
+            new TimeoutMessage(lastBeatID, sender),
             getContext().system().dispatcher(),
             sender
         );
@@ -56,7 +58,7 @@ public class GroupManager extends Node {
 
     private void scheduleFlushTimeout(View view, ActorRef sender) {
         getContext().system().scheduler().scheduleOnce(
-            Duration.ofMillis(MULTICAST_TIMEOUT),
+            Duration.ofMillis(TIMEOUT),
             getSelf(),
             new FlushTimeoutMessage(view, sender),
             getContext().system().dispatcher(),
@@ -71,28 +73,6 @@ public class GroupManager extends Node {
 
         setLogger(GroupManager.class.getName(), "group-manager.log");
         logger.info("Group Manager initialized with view " + currentView.id);
-    }
-
-    @Override
-    protected boolean onFlushMessage(FlushMessage msg){
-        boolean allViewInstalled = super.onFlushMessage(msg);
-        if (allViewInstalled) {
-            rescheduleTimeouts = false;
-            return true;
-        }
-        return false;
-    }
-
-    protected void onDataMessage(DataMessage msg) {
-        super.onDataMessage(msg);
-        lastMessages.put(getSender(), msg.id);
-        scheduleTimeout(msg.id, getSender());
-    }
-
-    protected void onStableMessage(StableMessage msg) {
-        super.onStableMessage(msg);
-        lastMessages.put(getSender(), msg.id);
-        scheduleTimeout(msg.id, getSender());
     }
 
     private void sendViewChange(View newView, ActorRef self) {
@@ -110,32 +90,33 @@ public class GroupManager extends Node {
                 .collect(Collectors.toList())
         );
 
+        // update the latest
+        lastGeneratedView = updatedView;
+
         logger.info(logMsg);
         sendViewChange(updatedView, self);
     }
 
+    private void onHeartbeatMessage(HeartbeatMessage msg) {
+        lastBeat.put(getSender(), msg.id);
+    }
+
     private void onTimeout(TimeoutMessage msg) {
-        if (!rescheduleTimeouts) {
-            // notice: the sender of this message was set as it was sent by the timed out node
-            if (lastMessages.getOrDefault(getSender(), -1) == msg.checkID) {
-                startViewChange(
-                    getSender(),
-                    getSelf(),
-                    "Timeout triggered - " + getSender() + ":" + msg.checkID
-                );
-            }
+        if (lastBeat.get(getSender()) <= msg.lastBeatID) {
+            startViewChange(
+                getSender(),
+                getSelf(),
+                "Timeout triggered - " + getSender()
+            );
         }
         else {
-            // reschedule again the timeout for this message
-            // in case a flush timeout was triggered
-            scheduleTimeout(msg.checkID, getSender());
+            scheduleTimeout(lastBeat.get(getSender()), getSender());
         }
     }
 
     private void onFlushTimeout(FlushTimeoutMessage msg) {
         if (receivedFlush.containsKey(msg.view)) {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
-                rescheduleTimeouts = true;
                 startViewChange(
                     getSender(),
                     getSelf(),
@@ -154,6 +135,8 @@ public class GroupManager extends Node {
         lastAssignedID++;
         actor2id.put(getSender(), lastAssignedID);
         getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
+        // -1 to be sure that first check does not fail
+        scheduleTimeout(-1, getSender());
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);

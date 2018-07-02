@@ -1,5 +1,6 @@
 package it.unitn.ds1.project1718;
 
+import akka.actor.ActorRef;
 import akka.actor.Props;
 import it.unitn.ds1.project1718.Messages.*;
 
@@ -10,6 +11,7 @@ public class Participant extends Node {
     private int messageID;
     private final int MAX_DELAY = 2000;
     private final int MIN_DELAY = 1200;
+    private ActorRef groupManager;
     private boolean justEntered;
     private boolean allowSending;
     private boolean crashed;
@@ -40,6 +42,7 @@ public class Participant extends Node {
         .match(CrashSendingMessage.class, this::onCrashWhileSendingMessage)
         .match(CrashReceivingMessage.class, this::onCrashAfterReceiveMessage)
         .match(CrashOnViewChangeMessage.class, this::onCrashOnViewChangeMessage)
+        .match(HeartbeatMessage.class, this::onHearthbeatMessage)
         .match(CrashMessage.class, this::onCrashMessage)
         .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
         .match(DataMessage.class, this::onDataMessage)          // hierarchical overshadowing
@@ -60,6 +63,9 @@ public class Participant extends Node {
 
     private void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
+        groupManager = getSender();
+        // start managing heartbeat messages
+        getSelf().tell(new HeartbeatMessage(0), getSelf());
 
         setLogger(Participant.class.getName() + "-" + msg.newID,
             "node-" + msg.newID + ".log");
@@ -106,10 +112,13 @@ public class Participant extends Node {
             msg.actorMapping.forEach((k, v) -> actor2id.put(k, v));
 
             allowSending = false;
-            super.onViewChangeMessage(msg);
 
-            // TODO: should it has to crash before or after sending flushes?
-            if (crashOnViewChange) crashed = true;
+            if (crashOnViewChange) {
+                crashed = true;
+            }
+            else {
+                super.onViewChangeMessage(msg);
+            }
         }
     }
 
@@ -132,22 +141,31 @@ public class Participant extends Node {
 
             }
             // wait anyway; if allowSending==false it's just  a postponed action
-            waitIntervalToSend();
+            waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
         }
     }
 
-    private int randomWatingTime() {
+    private int randomWaitingTime() {
         return rnd.nextInt(MAX_DELAY - MIN_DELAY) + MIN_DELAY;
     }
 
-    private void waitIntervalToSend() {
+    private void waitIntervalToSend(Serializable msg, int interval) {
         getContext().system().scheduler().scheduleOnce(
-                Duration.ofMillis(randomWatingTime()),
+                Duration.ofMillis(interval),
                 getSelf(),
-                new SendDataMessage(),
+                msg,
                 getContext().system().dispatcher(),
                 getSelf()
         );
+    }
+
+    /** send an heartbeat to the group manager every
+     *  */
+    private void onHearthbeatMessage(HeartbeatMessage msg) {
+        if (!crashed) {
+            groupManager.tell(new HeartbeatMessage(msg.id), getSelf());
+            waitIntervalToSend(new HeartbeatMessage(msg.id+1), HB_INTERVAL);
+        }
     }
 
     private void onCrashMessage(CrashMessage msg) {
