@@ -132,4 +132,6 @@ public class Messages {
             super(info);
         }
     }
+
+    public static class ExitMessage implements Serializable {}
 }

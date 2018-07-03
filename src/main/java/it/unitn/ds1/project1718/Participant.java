@@ -46,6 +46,7 @@ public class Participant extends Node {
         .match(CrashReceivingMessage.class, this::onCrashAfterReceiveMessage)
         .match(CrashOnViewChangeMessage.class, this::onCrashOnViewChangeMessage)
         .match(CrashMessage.class, this::onCrashMessage)    // this must stay after other crash messages (see above)
+        .match(ExitMessage.class, this::onExitMessage)
         .build();
     }
 
@@ -170,21 +171,25 @@ public class Participant extends Node {
 
     private void onCrashMessage(CrashMessage msg) {
         crashed = true;
-        logger.info(this.id + " crashed!");
+//        logger.info(this.id + " crashed!");
     }
 
     private void onCrashWhileSendingMessage(CrashSendingMessage msg) {
         crashSending = true;
-        logger.info(this.id + " going to crash on next multicast!");
+//        logger.info(this.id + " going to crash on next multicast!");
     }
 
     private void onCrashAfterReceiveMessage(CrashReceivingMessage msg) {
         crashReceiving = true;
-        logger.info(this.id + " going to crash on next receiving!");
+//        logger.info(this.id + " going to crash on next receiving!");
     }
 
     private void onCrashOnViewChangeMessage(CrashOnViewChangeMessage msg) {
         crashOnViewChange = true;
-        logger.info(this.id + " going to crash on next view change!");
+//        logger.info(this.id + " going to crash on next view change!");
+    }
+
+    private void onExitMessage(ExitMessage msg) {
+        allowSending = false;
     }
 }

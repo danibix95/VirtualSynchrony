@@ -80,7 +80,7 @@ public class GroupManager extends Node {
         // Important! this update must be performed
         lastGeneratedView = updatedView;
 
-        logger.info(logMsg);
+//        logger.info(logMsg);
         sendViewChange(updatedView, self);
     }
 
@@ -90,11 +90,11 @@ public class GroupManager extends Node {
         actor2id.put(getSelf(), id);
 
         setLogger(GroupManager.class.getName(), "group-manager.log");
-        logger.info("Group Manager initialized with view " + currentView.id);
+//        logger.info("Group Manager initialized with view " + currentView.id);
     }
 
     private void onJoinMessage(JoinMessage msg) {
-        logger.info(getSender().path().name() + " requested to join the system");
+//        logger.info(getSender().path().name() + " requested to join the system");
         List<ActorRef> updatedMembers =
             new ArrayList<>(lastGeneratedView.members);
         updatedMembers.add(getSender());
@@ -107,7 +107,7 @@ public class GroupManager extends Node {
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
-        logger.info("Join triggered");
+//        logger.info("Join triggered");
         sendViewChange(updatedView, getSelf());
 
         for (ActorRef actor : updatedView.members) {

@@ -8,6 +8,7 @@ import it.unitn.ds1.project1718.Messages.CrashReceivingMessage;
 import it.unitn.ds1.project1718.Messages.CrashOnViewChangeMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
+import it.unitn.ds1.project1718.Messages.ExitMessage;
 
 import java.io.File;
 import java.util.*;
@@ -89,6 +90,13 @@ public class VirtualSynchrony {
                         break;
                     case "e":
                         System.out.println("Exit...");
+                        actorsGroup.forEach((k, v) -> v.tell(new ExitMessage(), null));
+                        try {
+                            Thread.sleep(500);
+                        }
+                        catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         break;
                     default:
                         System.out.println("Command not recognized! Try again");
