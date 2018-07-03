@@ -100,7 +100,7 @@ public abstract class Node extends AbstractActor {
             if (!p.equals(getSelf())) {
                 p.tell(m, getSelf());
                 try {
-                    Thread.sleep(rnd.nextInt(10));
+                    Thread.sleep(rnd.nextInt(12));
                 }
                 catch (InterruptedException e) {
                     e.printStackTrace();
@@ -179,12 +179,21 @@ public abstract class Node extends AbstractActor {
 
     protected void onA2AMessage(A2AMessage msg) {
         View senderView = fromWhichView(getSender());
-        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
-            if (senderView == currentView) {
-                deliver(msg);
-            }
-            else {
-                waitToDeliver.get(senderView).add(msg);
+        if (!receivedMessages.containsKey(senderView)) {
+            receivedMessages.put(senderView, new ArrayList<>());
+        }
+
+        // this must not be a message i've sent
+        if (msg.senderID != this.id) {
+            // the message must not have been already delivered
+            if (!receivedMessages.get(senderView).contains(msg)) {
+                // the message must belongs to the current view
+                if (senderView.equals(currentView)) {
+                    deliver(msg);
+                }
+                else {
+                    waitToDeliver.get(senderView).add(msg);
+                }
             }
         }
     }
