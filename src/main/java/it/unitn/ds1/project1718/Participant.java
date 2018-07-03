@@ -35,17 +35,17 @@ public class Participant extends Node {
     public Receive createReceive() {
       return receiveBuilder()
         .match(AssignIDMessage.class, this::onAssignIDMessage)
+        .match(SendDataMessage.class, this::onSendDataMessage)
+        .match(A2AMessage.class, this::onA2AMessage)        // binding of A2A MUST be before DataMessage
+        .match(DataMessage.class, this::onDataMessage)      // hierarchical overshadowing
+        .match(StableMessage.class, this::onStableMessage)
         .match(ViewChangeMessage.class, this::onViewChangeMessage)
         .match(FlushMessage.class, this::onFlushMessage)
-        .match(StableMessage.class, this::onStableMessage)
-        .match(SendDataMessage.class, this::onSendDataMessage)
+        .match(HeartbeatMessage.class, this::onHearthbeatMessage)
         .match(CrashSendingMessage.class, this::onCrashWhileSendingMessage)
         .match(CrashReceivingMessage.class, this::onCrashAfterReceiveMessage)
         .match(CrashOnViewChangeMessage.class, this::onCrashOnViewChangeMessage)
-        .match(HeartbeatMessage.class, this::onHearthbeatMessage)
-        .match(CrashMessage.class, this::onCrashMessage)
-        .match(A2AMessage.class, this::onA2AMessage)            // binding of A2A MUST be before DataMessage
-        .match(DataMessage.class, this::onDataMessage)          // hierarchical overshadowing
+        .match(CrashMessage.class, this::onCrashMessage)    // this must stay after other crash messages (see above)
         .build();
     }
 
@@ -61,6 +61,20 @@ public class Participant extends Node {
         crashed = true;
     }
 
+    private int randomWaitingTime() {
+        return rnd.nextInt(MAX_DELAY - MIN_DELAY) + MIN_DELAY;
+    }
+
+    private void waitIntervalToSend(Serializable msg, int interval) {
+        getContext().system().scheduler().scheduleOnce(
+            Duration.ofMillis(interval),
+            getSelf(),
+            msg,
+            getContext().system().dispatcher(),
+            getSelf()
+        );
+    }
+
     private void onAssignIDMessage(AssignIDMessage msg) {
         this.id = msg.newID;
         groupManager = getSender();
@@ -69,6 +83,66 @@ public class Participant extends Node {
 
         setLogger(Participant.class.getName() + "-" + msg.newID,
             "node-" + msg.newID + ".log");
+    }
+
+    private void onSendDataMessage(SendDataMessage msg) {
+        if (!crashed) {
+            if (allowSending) {
+                logger.info(this.id + " send multicast "
+                    + this.messageID + " within " + currentView.id);
+                DataMessage dataMessage = new DataMessage(messageID, this.id);
+
+                if (crashSending) {
+                    multicastCrashing(dataMessage);
+                }
+                else {
+                    multicast(dataMessage);
+                    multicast(new StableMessage(this.messageID, this.id));
+                }
+                this.messageID++;
+
+            }
+            // keep on creating new data messages, just ignore the current one
+            waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
+        }
+    }
+
+    @Override
+    protected void onDataMessage(DataMessage msg) {
+        if (!crashed) {
+            if (crashReceiving) {
+                crashed = true;
+            }
+            else {
+                super.onDataMessage(msg);
+            }
+
+        }
+    }
+
+    @Override
+    protected void onStableMessage(StableMessage msg) {
+        if (!crashed) super.onStableMessage(msg);
+    }
+
+    @Override
+    protected void onA2AMessage(A2AMessage msg) {
+        if (!justEntered && !crashed) super.onA2AMessage(msg);
+    }
+
+    @Override
+    protected void onViewChangeMessage(ViewChangeMessage msg) {
+        if (!crashed) {
+            allowSending = false;
+            msg.actorMapping.forEach((k, v) -> actor2id.put(k, v));
+
+            if (crashOnViewChange) {
+                crashed = true;
+            }
+            else {
+                super.onViewChangeMessage(msg);
+            }
+        }
     }
 
     @Override
@@ -87,80 +161,6 @@ public class Participant extends Node {
         return false;
     }
 
-    @Override
-    protected void onStableMessage(StableMessage msg) {
-        if (!crashed) super.onStableMessage(msg);
-    }
-
-    @Override
-    protected void onDataMessage(DataMessage msg) {
-        if (!crashed) {
-            super.onDataMessage(msg);
-
-            if (crashReceiving) crashed = true;
-        }
-    }
-
-    @Override
-    protected void onA2AMessage(A2AMessage msg) {
-        if (!justEntered && !crashed) super.onA2AMessage(msg);
-    }
-
-    @Override
-    protected void onViewChangeMessage(ViewChangeMessage msg) {
-        if (!crashed) {
-            msg.actorMapping.forEach((k, v) -> actor2id.put(k, v));
-
-            allowSending = false;
-
-            if (crashOnViewChange) {
-                crashed = true;
-            }
-            else {
-                super.onViewChangeMessage(msg);
-            }
-        }
-    }
-
-    private void onSendDataMessage(SendDataMessage msg) {
-        if (!crashed) {
-            if (allowSending) {
-                logger.info(this.id + " send multicast "
-                    + this.messageID + " within " + currentView.id);
-                DataMessage dataMessage = new DataMessage(messageID, this.id);
-
-                if (crashSending) {
-                    multicastCrashing(dataMessage);
-                }
-                else {
-                    multicast(dataMessage);
-                    this.messageID++;
-                    multicast(new StableMessage(this.messageID, dataMessage.id, this.id));
-                }
-                this.messageID++;
-
-            }
-            // wait anyway; if allowSending==false it's just  a postponed action
-            waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
-        }
-    }
-
-    private int randomWaitingTime() {
-        return rnd.nextInt(MAX_DELAY - MIN_DELAY) + MIN_DELAY;
-    }
-
-    private void waitIntervalToSend(Serializable msg, int interval) {
-        getContext().system().scheduler().scheduleOnce(
-                Duration.ofMillis(interval),
-                getSelf(),
-                msg,
-                getContext().system().dispatcher(),
-                getSelf()
-        );
-    }
-
-    /** send an heartbeat to the group manager every
-     *  */
     private void onHearthbeatMessage(HeartbeatMessage msg) {
         if (!crashed) {
             groupManager.tell(new HeartbeatMessage(msg.id), getSelf());

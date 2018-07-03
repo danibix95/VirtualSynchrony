@@ -23,8 +23,8 @@ public class VirtualSynchrony {
             System.err.println("Impossible to create folder in which logs will be saved!");
             se.printStackTrace();
         }
-        final ActorSystem system = ActorSystem.create("virtual-synchrony");
 
+        final ActorSystem system = ActorSystem.create("virtual-synchrony");
         ActorRef groupManager = system.actorOf(GroupManager.props(), "0");
 
         // id counter used to keep track of ActorRef
@@ -42,7 +42,7 @@ public class VirtualSynchrony {
 
         actorsGroup.forEach((k, actor) -> groupManager.tell(new JoinMessage(), actor));
 
-        // menu that manages external interaction with the system
+        // menu for managing external interaction with the system
         try {
             String command = "";
             Scanner scanner = new Scanner(System.in);
@@ -63,7 +63,7 @@ public class VirtualSynchrony {
                             system.actorOf(Participant.props(), String.valueOf("node-" + id));
                         actorsGroup.putIfAbsent(id, newActor);
                         groupManager.tell(new JoinMessage(), newActor);
-                        System.out.println("New actor (" + id  + ") joined!");
+                        System.out.println("New actor (" + id  + ") will soon join!");
 
                         id++;
                         break;
@@ -101,7 +101,7 @@ public class VirtualSynchrony {
     }
 
     /** Send given crash message to selected actor
-    *   and update the tracking structure removing it. */
+    *   and update the tracking structure removing the actor. */
     private static void manageCrashMessage(Scanner scr,
         HashMap<Integer, ActorRef> actors, CrashMessage msg) {
 

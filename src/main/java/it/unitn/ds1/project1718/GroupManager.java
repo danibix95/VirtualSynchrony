@@ -16,10 +16,6 @@ public class GroupManager extends Node {
     private final int TIMEOUT = 5500;
     private HashMap<ActorRef, Integer> lastBeat = new HashMap<>();
     private View lastGeneratedView;
-    // this variable control if data timeouts must be rescheduled
-    // once a flush message is received
-    // TODO: need to review this part!
-    private boolean rescheduleTimeouts = false;
 
     public GroupManager() {
         super();
@@ -34,15 +30,15 @@ public class GroupManager extends Node {
     public Receive createReceive() {
         return receiveBuilder()
             .match(StartMessage.class, this::onStartMessage)
-            .match(StableMessage.class, this::onStableMessage)
-            .match(TimeoutMessage.class, this::onTimeout)
-            .match(FlushTimeoutMessage.class, this::onFlushTimeout)
-            .match(ViewChangeMessage.class, this::onViewChangeMessage)
-            .match(FlushMessage.class, this::onFlushMessage)
-            .match(JoinMessage.class, this::onJoinMessage)
-            .match(HeartbeatMessage.class, this::onHeartbeatMessage)
             .match(A2AMessage.class, this::onA2AMessage)        // binding of A2A MUST be before DataMessage
             .match(DataMessage.class, this::onDataMessage)      // hierarchical overshadowing
+            .match(StableMessage.class, this::onStableMessage)
+            .match(JoinMessage.class, this::onJoinMessage)
+            .match(ViewChangeMessage.class, this::onViewChangeMessage)
+            .match(TimeoutMessage.class, this::onTimeout)
+            .match(FlushTimeoutMessage.class, this::onFlushTimeout)
+            .match(FlushMessage.class, this::onFlushMessage)
+            .match(HeartbeatMessage.class, this::onHeartbeatMessage)
             .build();
     }
 
@@ -66,15 +62,6 @@ public class GroupManager extends Node {
         );
     }
 
-    private void onStartMessage(StartMessage msg) {
-        currentView = msg.view;
-        lastGeneratedView = currentView;
-        actor2id.put(getSelf(), id);
-
-        setLogger(GroupManager.class.getName(), "group-manager.log");
-        logger.info("Group Manager initialized with view " + currentView.id);
-    }
-
     private void sendViewChange(View newView, ActorRef self) {
         multicastToView(new ViewChangeMessage(newView, actor2id), newView);
         getSelf().tell(new ViewChangeMessage(newView, null), self);
@@ -90,11 +77,44 @@ public class GroupManager extends Node {
                 .collect(Collectors.toList())
         );
 
-        // update the latest
+        // Important! this update must be performed
         lastGeneratedView = updatedView;
 
         logger.info(logMsg);
         sendViewChange(updatedView, self);
+    }
+
+    private void onStartMessage(StartMessage msg) {
+        currentView = msg.view;
+        lastGeneratedView = currentView;
+        actor2id.put(getSelf(), id);
+
+        setLogger(GroupManager.class.getName(), "group-manager.log");
+        logger.info("Group Manager initialized with view " + currentView.id);
+    }
+
+    private void onJoinMessage(JoinMessage msg) {
+        logger.info(getSender().path().name() + " requested to join the system");
+        List<ActorRef> updatedMembers =
+            new ArrayList<>(lastGeneratedView.members);
+        updatedMembers.add(getSender());
+
+        lastAssignedID++;
+        actor2id.put(getSender(), lastAssignedID);
+        getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
+        scheduleTimeout(0, getSender());
+
+        lastViewID++;
+        View updatedView = new View(lastViewID, updatedMembers);
+        lastGeneratedView = updatedView;
+        logger.info("Join triggered");
+        sendViewChange(updatedView, getSelf());
+
+        for (ActorRef actor : updatedView.members) {
+            if (!actor.equals(getSelf())) {
+                scheduleFlushTimeout(updatedView, actor);
+            }
+        }
     }
 
     private void onHeartbeatMessage(HeartbeatMessage msg) {
@@ -122,31 +142,6 @@ public class GroupManager extends Node {
                     getSelf(),
                     "Flush Timeout triggered"
                 );
-            }
-        }
-    }
-
-    private void onJoinMessage(JoinMessage msg) {
-        logger.info(getSender().path().name() + " requested to join the system");
-        List<ActorRef> updatedMembers =
-            new ArrayList<>(lastGeneratedView.members);
-        updatedMembers.add(getSender());
-
-        lastAssignedID++;
-        actor2id.put(getSender(), lastAssignedID);
-        getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
-        // -1 to be sure that first check does not fail
-        scheduleTimeout(-1, getSender());
-
-        lastViewID++;
-        View updatedView = new View(lastViewID, updatedMembers);
-        lastGeneratedView = updatedView;
-        logger.info("Join triggered");
-        sendViewChange(updatedView, getSelf());
-
-        for (ActorRef actor : updatedView.members) {
-            if (!actor.equals(getSelf())) {
-                scheduleFlushTimeout(updatedView, actor);
             }
         }
     }

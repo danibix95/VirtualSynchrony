@@ -40,7 +40,8 @@ public class Messages {
         }
     }
 
-    // message used during data exchange before flush message is sent
+    // message used during data exchange (all-to-all procedure)
+    // before flush messages are sent
     public static class A2AMessage extends DataMessage {
         public A2AMessage(int id, int originalSender) {
             super(id, originalSender);
@@ -64,11 +65,9 @@ public class Messages {
     }
 
     public static class StableMessage implements Serializable {
-        public final int id;
         public final int messageID;
         public final int senderID;
-        public StableMessage(int id,int messageID, int senderID) {
-            this.id = id;
+        public StableMessage(int messageID, int senderID) {
             this.messageID = messageID;
             this.senderID = senderID;
         }
@@ -77,6 +76,7 @@ public class Messages {
     public static class JoinMessage implements Serializable {}
 
     public static abstract class Timeout implements Serializable {
+        // represent who have timed out
         public final ActorRef sender;
         public Timeout(ActorRef sender) {
             this.sender = sender;
@@ -84,7 +84,7 @@ public class Messages {
     }
 
     public static class TimeoutMessage extends Timeout {
-        public int lastBeatID;
+        public final int lastBeatID;
         public TimeoutMessage(int lastBeatID, ActorRef messageSender) {
             super(messageSender);
             this.lastBeatID = lastBeatID;
@@ -100,8 +100,7 @@ public class Messages {
     }
 
     public static class HeartbeatMessage implements Serializable {
-        public int id;
-
+        public final int id;
         public HeartbeatMessage(int id) {
             this.id = id;
         }
@@ -110,8 +109,7 @@ public class Messages {
     public static class SendDataMessage implements Serializable {}
 
     public static class CrashMessage implements Serializable {
-        public String info;
-
+        public final String info;
         public CrashMessage(String info) {
             this.info = info;
         }
