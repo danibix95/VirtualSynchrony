@@ -15,6 +15,7 @@ public class GroupManager extends Node {
     private int lastAssignedID = 0;
     private final int TIMEOUT = 5500;
     private HashMap<ActorRef, Integer> lastBeat = new HashMap<>();
+    private HashMap<ActorRef, Boolean> ignoreTimeout = new HashMap<>();
     private View lastGeneratedView;
 
     public GroupManager() {
@@ -122,21 +123,26 @@ public class GroupManager extends Node {
     }
 
     private void onTimeout(TimeoutMessage msg) {
-        if (lastBeat.get(getSender()) <= msg.lastBeatID) {
-            startViewChange(
-                getSender(),
-                getSelf(),
-                "Timeout triggered - " + getSender()
-            );
-        }
-        else {
-            scheduleTimeout(lastBeat.get(getSender()), getSender());
+        if (!ignoreTimeout.getOrDefault(getSender(), false)) {
+            if (lastBeat.get(getSender()) <= msg.lastBeatID) {
+                startViewChange(
+                    getSender(),
+                    getSelf(),
+                    "Timeout triggered - " + getSender()
+                );
+            } else {
+                scheduleTimeout(lastBeat.get(getSender()), getSender());
+            }
         }
     }
 
     private void onFlushTimeout(FlushTimeoutMessage msg) {
         if (receivedFlush.containsKey(msg.view)) {
             if (!receivedFlush.get(msg.view).contains(getSender())) {
+                // necessary to prevent subsequent timeout due to missing heartbeat
+                // (the node is already crashed when a timeout is received after a flush timeout)
+                ignoreTimeout.putIfAbsent(getSender(), true);
+
                 startViewChange(
                     getSender(),
                     getSelf(),
