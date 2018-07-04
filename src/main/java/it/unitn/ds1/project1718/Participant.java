@@ -102,9 +102,8 @@ public class Participant extends Node {
                 }
                 this.messageID++;
 
+                waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
             }
-            // keep on creating new data messages, just ignore the current one
-            waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
         }
     }
 
@@ -152,6 +151,9 @@ public class Participant extends Node {
             boolean allViewInstalled = super.onFlushMessage(msg);
             if (allViewInstalled) {
                 allowSending = true;
+                // start sending data messages again
+                waitIntervalToSend(new SendDataMessage(), randomWaitingTime());
+
                 if (justEntered) {
                     justEntered = false;
                     getSelf().tell(new SendDataMessage(), getSelf());
