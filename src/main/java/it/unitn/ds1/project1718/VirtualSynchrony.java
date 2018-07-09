@@ -75,12 +75,12 @@ public class VirtualSynchrony {
                         break;
                     case "cs":
                         manageCrashMessage(scanner, actorsGroup,
-                            new CrashSendingMessage("\"on next multicast!\"")
+                            new CrashSendingMessage("on next multicast!")
                         );
                         break;
                     case "cr":
                         manageCrashMessage(scanner, actorsGroup,
-                            new CrashReceivingMessage("\"on receiving next message!\"")
+                            new CrashReceivingMessage("on receiving next message!")
                         );
                         break;
                     case "cv":

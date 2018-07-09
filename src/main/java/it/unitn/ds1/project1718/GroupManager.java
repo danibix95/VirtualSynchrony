@@ -68,7 +68,7 @@ public class GroupManager extends Node {
         getSelf().tell(new ViewChangeMessage(newView, null), self);
     }
 
-    private void startViewChange(ActorRef timedOut, ActorRef self, String logMsg) {
+    private void startViewChange(ActorRef timedOut, ActorRef self) {
         lastViewID++;
 
         View updatedView = new View(
@@ -81,7 +81,6 @@ public class GroupManager extends Node {
         // Important! this update must be performed
         lastGeneratedView = updatedView;
 
-//        logger.info(logMsg);
         sendViewChange(updatedView, self);
     }
 
@@ -91,11 +90,9 @@ public class GroupManager extends Node {
         actor2id.put(getSelf(), id);
 
         setLogger(GroupManager.class.getName(), "group-manager.log");
-//        logger.info("Group Manager initialized with view " + currentView.id);
     }
 
     private void onJoinMessage(JoinMessage msg) {
-//        logger.info(getSender().path().name() + " requested to join the system");
         List<ActorRef> updatedMembers =
             new ArrayList<>(lastGeneratedView.members);
         updatedMembers.add(getSender());
@@ -108,7 +105,6 @@ public class GroupManager extends Node {
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
-//        logger.info("Join triggered");
         sendViewChange(updatedView, getSelf());
 
         for (ActorRef actor : updatedView.members) {
@@ -125,11 +121,7 @@ public class GroupManager extends Node {
     private void onTimeout(TimeoutMessage msg) {
         if (!ignoreTimeout.getOrDefault(getSender(), false)) {
             if (lastBeat.get(getSender()) <= msg.lastBeatID) {
-                startViewChange(
-                    getSender(),
-                    getSelf(),
-                    "Timeout triggered - " + getSender()
-                );
+                startViewChange(getSender(), getSelf());
             } else {
                 scheduleTimeout(lastBeat.get(getSender()), getSender());
             }
@@ -143,11 +135,7 @@ public class GroupManager extends Node {
                 // (the node is already crashed when a timeout is received after a flush timeout)
                 ignoreTimeout.putIfAbsent(getSender(), true);
 
-                startViewChange(
-                    getSender(),
-                    getSelf(),
-                    "Flush Timeout triggered"
-                );
+                startViewChange(getSender(), getSelf());
             }
         }
     }
