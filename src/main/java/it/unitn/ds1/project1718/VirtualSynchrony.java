@@ -8,6 +8,7 @@ import it.unitn.ds1.project1718.Messages.CrashReceivingMessage;
 import it.unitn.ds1.project1718.Messages.CrashOnViewChangeMessage;
 import it.unitn.ds1.project1718.Messages.JoinMessage;
 import it.unitn.ds1.project1718.Messages.StartMessage;
+import it.unitn.ds1.project1718.Messages.ExitMessage;
 
 import java.io.File;
 import java.util.*;
@@ -23,8 +24,8 @@ public class VirtualSynchrony {
             System.err.println("Impossible to create folder in which logs will be saved!");
             se.printStackTrace();
         }
-        final ActorSystem system = ActorSystem.create("virtual-synchrony");
 
+        final ActorSystem system = ActorSystem.create("virtual-synchrony");
         ActorRef groupManager = system.actorOf(GroupManager.props(), "0");
 
         // id counter used to keep track of ActorRef
@@ -42,7 +43,7 @@ public class VirtualSynchrony {
 
         actorsGroup.forEach((k, actor) -> groupManager.tell(new JoinMessage(), actor));
 
-        // menu that manages external interaction with the system
+        // menu for managing external interaction with the system
         try {
             String command = "";
             Scanner scanner = new Scanner(System.in);
@@ -63,7 +64,7 @@ public class VirtualSynchrony {
                             system.actorOf(Participant.props(), String.valueOf("node-" + id));
                         actorsGroup.putIfAbsent(id, newActor);
                         groupManager.tell(new JoinMessage(), newActor);
-                        System.out.println("New actor (" + id  + ") joined!");
+                        System.out.println("New actor (" + id  + ") will soon join!");
 
                         id++;
                         break;
@@ -74,12 +75,12 @@ public class VirtualSynchrony {
                         break;
                     case "cs":
                         manageCrashMessage(scanner, actorsGroup,
-                            new CrashSendingMessage("\"on next multicast!\"")
+                            new CrashSendingMessage("on next multicast!")
                         );
                         break;
                     case "cr":
                         manageCrashMessage(scanner, actorsGroup,
-                            new CrashReceivingMessage("\"on receiving next message!\"")
+                            new CrashReceivingMessage("on receiving next message!")
                         );
                         break;
                     case "cv":
@@ -89,6 +90,13 @@ public class VirtualSynchrony {
                         break;
                     case "e":
                         System.out.println("Exit...");
+                        actorsGroup.forEach((k, v) -> v.tell(new ExitMessage(), null));
+                        try {
+                            Thread.sleep(500);
+                        }
+                        catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         break;
                     default:
                         System.out.println("Command not recognized! Try again");
@@ -101,7 +109,7 @@ public class VirtualSynchrony {
     }
 
     /** Send given crash message to selected actor
-    *   and update the tracking structure removing it. */
+    *   and update the tracking structure removing the actor. */
     private static void manageCrashMessage(Scanner scr,
         HashMap<Integer, ActorRef> actors, CrashMessage msg) {
 

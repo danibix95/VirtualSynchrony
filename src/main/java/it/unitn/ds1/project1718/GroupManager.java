@@ -15,11 +15,8 @@ public class GroupManager extends Node {
     private int lastAssignedID = 0;
     private final int TIMEOUT = 5500;
     private HashMap<ActorRef, Integer> lastBeat = new HashMap<>();
+    private HashMap<ActorRef, Boolean> ignoreTimeout = new HashMap<>();
     private View lastGeneratedView;
-    // this variable control if data timeouts must be rescheduled
-    // once a flush message is received
-    // TODO: need to review this part!
-    private boolean rescheduleTimeouts = false;
 
     public GroupManager() {
         super();
@@ -34,15 +31,15 @@ public class GroupManager extends Node {
     public Receive createReceive() {
         return receiveBuilder()
             .match(StartMessage.class, this::onStartMessage)
-            .match(StableMessage.class, this::onStableMessage)
-            .match(TimeoutMessage.class, this::onTimeout)
-            .match(FlushTimeoutMessage.class, this::onFlushTimeout)
-            .match(ViewChangeMessage.class, this::onViewChangeMessage)
-            .match(FlushMessage.class, this::onFlushMessage)
-            .match(JoinMessage.class, this::onJoinMessage)
-            .match(HeartbeatMessage.class, this::onHeartbeatMessage)
             .match(A2AMessage.class, this::onA2AMessage)        // binding of A2A MUST be before DataMessage
             .match(DataMessage.class, this::onDataMessage)      // hierarchical overshadowing
+            .match(StableMessage.class, this::onStableMessage)
+            .match(JoinMessage.class, this::onJoinMessage)
+            .match(ViewChangeMessage.class, this::onViewChangeMessage)
+            .match(TimeoutMessage.class, this::onTimeout)
+            .match(FlushTimeoutMessage.class, this::onFlushTimeout)
+            .match(FlushMessage.class, this::onFlushMessage)
+            .match(HeartbeatMessage.class, this::onHeartbeatMessage)
             .build();
     }
 
@@ -66,21 +63,12 @@ public class GroupManager extends Node {
         );
     }
 
-    private void onStartMessage(StartMessage msg) {
-        currentView = msg.view;
-        lastGeneratedView = currentView;
-        actor2id.put(getSelf(), id);
-
-        setLogger(GroupManager.class.getName(), "group-manager.log");
-        logger.info("Group Manager initialized with view " + currentView.id);
-    }
-
     private void sendViewChange(View newView, ActorRef self) {
         multicastToView(new ViewChangeMessage(newView, actor2id), newView);
         getSelf().tell(new ViewChangeMessage(newView, null), self);
     }
 
-    private void startViewChange(ActorRef timedOut, ActorRef self, String logMsg) {
+    private void startViewChange(ActorRef timedOut, ActorRef self) {
         lastViewID++;
 
         View updatedView = new View(
@@ -90,44 +78,21 @@ public class GroupManager extends Node {
                 .collect(Collectors.toList())
         );
 
-        // update the latest
+        // Important! this update must be performed
         lastGeneratedView = updatedView;
 
-        logger.info(logMsg);
         sendViewChange(updatedView, self);
     }
 
-    private void onHeartbeatMessage(HeartbeatMessage msg) {
-        lastBeat.put(getSender(), msg.id);
-    }
+    private void onStartMessage(StartMessage msg) {
+        currentView = msg.view;
+        lastGeneratedView = currentView;
+        actor2id.put(getSelf(), id);
 
-    private void onTimeout(TimeoutMessage msg) {
-        if (lastBeat.get(getSender()) <= msg.lastBeatID) {
-            startViewChange(
-                getSender(),
-                getSelf(),
-                "Timeout triggered - " + getSender()
-            );
-        }
-        else {
-            scheduleTimeout(lastBeat.get(getSender()), getSender());
-        }
-    }
-
-    private void onFlushTimeout(FlushTimeoutMessage msg) {
-        if (receivedFlush.containsKey(msg.view)) {
-            if (!receivedFlush.get(msg.view).contains(getSender())) {
-                startViewChange(
-                    getSender(),
-                    getSelf(),
-                    "Flush Timeout triggered"
-                );
-            }
-        }
+        setLogger(GroupManager.class.getName(), "group-manager.log");
     }
 
     private void onJoinMessage(JoinMessage msg) {
-        logger.info(getSender().path().name() + " requested to join the system");
         List<ActorRef> updatedMembers =
             new ArrayList<>(lastGeneratedView.members);
         updatedMembers.add(getSender());
@@ -135,18 +100,42 @@ public class GroupManager extends Node {
         lastAssignedID++;
         actor2id.put(getSender(), lastAssignedID);
         getSender().tell(new AssignIDMessage(lastAssignedID), getSelf());
-        // -1 to be sure that first check does not fail
-        scheduleTimeout(-1, getSender());
+        scheduleTimeout(0, getSender());
 
         lastViewID++;
         View updatedView = new View(lastViewID, updatedMembers);
         lastGeneratedView = updatedView;
-        logger.info("Join triggered");
         sendViewChange(updatedView, getSelf());
 
         for (ActorRef actor : updatedView.members) {
             if (!actor.equals(getSelf())) {
                 scheduleFlushTimeout(updatedView, actor);
+            }
+        }
+    }
+
+    private void onHeartbeatMessage(HeartbeatMessage msg) {
+        lastBeat.put(getSender(), msg.id);
+    }
+
+    private void onTimeout(TimeoutMessage msg) {
+        if (!ignoreTimeout.getOrDefault(getSender(), false)) {
+            if (lastBeat.get(getSender()) <= msg.lastBeatID) {
+                startViewChange(getSender(), getSelf());
+            } else {
+                scheduleTimeout(lastBeat.get(getSender()), getSender());
+            }
+        }
+    }
+
+    private void onFlushTimeout(FlushTimeoutMessage msg) {
+        if (receivedFlush.containsKey(msg.view)) {
+            if (!receivedFlush.get(msg.view).contains(getSender())) {
+                // necessary to prevent subsequent timeout due to missing heartbeat
+                // (the node is already crashed when a timeout is received after a flush timeout)
+                ignoreTimeout.putIfAbsent(getSender(), true);
+
+                startViewChange(getSender(), getSelf());
             }
         }
     }

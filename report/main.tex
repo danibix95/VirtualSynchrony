@@ -3,36 +3,84 @@
 \usepackage{geometry}
 \geometry{
 	a4paper,
-	top=2.5cm
+	top=2cm
 }
 \usepackage[utf8x]{inputenc}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage[hidelinks]{hyperref}
 \usepackage{cleveref}
-\usepackage{multirow}
-\usepackage{multicol}
 \usepackage{amsmath}
 \usepackage{enumerate}
-\usepackage{algorithm}
-\usepackage{algorithmicx}
-\usepackage{algpseudocode}
 \usepackage{url}
 
-\title{\LARGE{\textbf{Distributed Systems 1 Project Report\\\small{Virtual Synchrony}}}}
+\title{\LARGE{\textbf{Virtual Synchrony - Project Report}\\[0mm]\large{Distributed Systems 1, 2017 - 2018}}}
 \author{Daniele Bissoli - 197810, Andrea Zampieri - 198762}
 \date{}
 
 \begin{document}
 	\maketitle
 	
-	\section{Participant Class}
-		The so called \textit{Participant} is the implementation of an active node in the system: it sends messages to the other nodes and delivers the received ones according to the Virtual Synchrony logic.\newline
-		It inherits all the attributes of \textit{Node} (e.g. the list of received messages, the unstable ones (with respect to each view) and the queue for messages received too early), and adds some of its own in order to be able to control the flow and the behaviour of the actors. Other than trivial ones (messageID, MIN\_DELAY, MAX\_DELAY for handling the transmission of new messages) there are some status variables to enforce the wanted behaviour. 
-		\begin{itemize}
-			\item [-] \textit{\textbf{justEntered}}: it's used just once to trigger a new \textit{SendDatamessage} that makes the process send a new multicast, and reissues itself with a random delay $d \in [\text{MIN\_DELAY,MAX\_DELAY}]$
-			\item [-] \textit{\textbf{allowSending}}: as its name tells, when its value is \textbf{false}, the process won't send any new message to the others in the system
-			\item [-] \textit{\textbf{crashed}}: tells wether the process has failed or not (it's used to simulate the crash of a given process)
-		\end{itemize}
+	\section{Introduction}
+	In this project, we have implemented a simple group communication service that permits different members of a group to communicate through messages exchange. The management of the group is performed in a centralized fashion through a special node, named \textit{Group Manager}. As design requirement, the system provide is able to guarantee the Virtual Synchrony, providing the synchronization between members.
+	
+	\subsection{View and Virtual Synchrony}
+	A view is a local representation of the system, that is the set of group members that are still operational. Each member of the group has its own view and they have to globally agree on the same view in order to consistently communicate. Moreover, a view can be seen a system epoch, since it change every time a new participant join the group or when a cohort is detected to be crashed.
+	Under the assumptions of reliable links and FIFO channels, \textit{Virtual Synchrony} is the mechanism which makes all group members synchronize upon the same view. In this way messages are guaranteed to be delivered to all the currently operational nodes.
+	
+	\section{Project Architecture}
+	The project is divided into three main classes (\textit{Node}, \textit{Participant} and \textit{Group Manager}). In addition, it contains the definition of all exchanged messages and the class in charge to manage the creation of the system. In the following paragraphs the three main classes will be explained.
+	
+	\subsection{Node}
+	This is the main class, which represent a common group member (also called \textit{participant}). It defines the main functionalities of a group member which communicate under the Virtual Synchrony. These are:
+	\begin{itemize}
+		\item \textbf{reception of a message} - when a data message is received, it is delivered to the application, but a copy of it is kept until the stability of it is reached, which mean the sender was able to send that message to everybody in the group.
+		\item \textbf{stability of a received message} - upon the reception of this message, the corresponding data message can be deleted since it is confirmed that the message has been delivered to everybody in the group.
+		\item \textbf{management of views} - when a view change message is received, it is responsible to check for unstable messages. If so, send them to all the group participants and the send a flush message that signal its intention changing the view
+		\item \textbf{view change mechanism} - once a flush message is received, it checks if all the flush for that view has been received. If so, it performs a view installation (progress to next view). If there were previous views that were still open, it first install them and then it install the latest one.
+	\end{itemize}
+	
+	\subsection{Participant}
+	It represent a member of the group which continuously send and receive message from others. It extend the \textit{Node} class providing more functionalities such as send of data messages and mechanisms to set the participant as crashed. In addition, it provides a finer implementation of some functionalities as flush messages management and view change.
+	
+	The so called \textit{Participant} is the implementation of an active node in the system: it sends messages to the other nodes and delivers the received ones according to the Virtual Synchrony logic.\newline
+	It inherits all the attributes of \textit{Node} (e.g. the list of received messages, the unstable ones (with respect to each view) and the queue for messages received too early), and adds some of its own in order to be able to control the flow and the behaviour of the actors. Other than trivial ones (messageID, MIN\_DELAY, MAX\_DELAY for handling the transmission of new messages) there are some status variables to enforce the wanted behaviour. 
+	\begin{itemize}
+		\item [-] \textit{\textbf{justEntered}}: it's used just once to trigger a new \textit{SendDatamessage} that makes the process send a new multicast, and reissues itself with a random delay $d \in [\text{MIN\_DELAY,MAX\_DELAY}]$
+		\item [-] \textit{\textbf{allowSending}}: as its name tells, when its value is \textbf{false}, the process won't send any new message to the others in the system
+		\item [-] \textit{\textbf{crashed}}: tells wether the process has failed or not (it's used to simulate the crash of a given process)
+	\end{itemize}
+	
+		
+	Stuff to discuss:
+	- A2A message (state that we decided to distinguish it from common data message)
+	- explain how flush management works (e.g receivedFlush.isEmpty())
+	- slightly different protocol from the one given by Timofei
+	- how timeouts after flush timeouts are avoided
+		
+	\subsection{Group Manager}
+	It is a \textit{reliable} group participant responsible to coordinate view updates between group members. It is build on top of the \textit{Node} class and therefore it share most of the characteristics of a group participant. Indeed, it also implement Virtual Syncrony logics, such as reaction to View Change and flush messages, although it is only able to receive messages. Besides, it is in charge of detecting crashes, which is recognized through timeout mechanism based on:
+	
+	\begin{itemize}
+		\item \textbf{missing heartbeat message} - it is a message sent continuously by each cohort to the Group Manager to notify that it is still operational. Group manager detects that a participant has crashed when its heartbeat is not received within a predefined timeout
+		\item \textbf{missing flush message} - it is a message sent by all the group members when a view change is triggered. Group Manager detects if a participant is crashed when it does not receive its flush message within the expected predefined timeout
+	\end{itemize}
+	In both cases, the group manager will trigger a view change, creating a new view and sending it to every group member through multicast exchange.
+	
+	Apart from previous tasks, Group manager also manage requests from new participants to join the group. To respect the Virtual Synchrony, a new view is generated to keep track of new member acquisition.
+	
+%	\textbf{We need to specify that participant multicast to everybody but itself, but the checker doesn't take into account that. I mean, the checker doesn't take into account the fact that a node can crash silently. So it signals that there are some messages that are not delivered to all the participant in that epoc, but those who're missing are not operational anymore, so it should be fine.}
+	
+	\section{Crashes and Joining}
+	The system is able to tolerate silent cohort crashes by means of the flush protocol. To control cohorts state, it is possible to send them special messages that make them crash according to predefined behaviour. Crashing modalities are specified below:
+	
+	\begin{itemize}
+		\item \textbf{crash at any time} - immediately set the chosen node as crashed
+		\item \textbf{crash on sending} - set the node crashed when it will perform next multicast to the group. As a result, only half of the group members will receive the sent message. It is up to the \textit{all-to-all} exchange, performed during view change, to make all the other operational nodes delivering the sent message.
+		\item \textbf{crash on receiving} - set the node crashed when it will receive next message. In this way the node is not able to perform the delivery of received message before crashing.
+		\item \textbf{crash on view change} - set the node crashed when next view change is triggered. Therefore, the chosen node will not be able to perform the all-to-all message exchange and to send flush messages.
+	\end{itemize}
+	
+	The system also allows to add further members. To join a new participant, a request must be sent to the group manager, which will to fulfill it. The Group Manager will generate a new \textit{id} for the new member and it will introduce the participant into the group, triggering a view change.
 		
 \end{document}

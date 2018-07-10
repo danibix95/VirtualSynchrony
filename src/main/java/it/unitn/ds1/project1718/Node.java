@@ -13,11 +13,11 @@ import java.util.stream.Collectors;
 public abstract class Node extends AbstractActor {
     protected int id;
     protected View currentView;
-    protected HashMap<View,List<DataMessage>> unstableMessages = new HashMap<>();
-    protected TreeMap<View,List<ActorRef>> receivedFlush = new TreeMap<>();
-    protected HashMap<View,List<DataMessage>> receivedMessages = new HashMap<>();
+    protected HashMap<View, List<DataMessage>> unstableMessages = new HashMap<>();
+    protected TreeMap<View, List<ActorRef>> receivedFlush = new TreeMap<>();
+    protected HashMap<View, List<DataMessage>> receivedMessages = new HashMap<>();
     protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
-    protected HashMap<View,List<DataMessage>> waitToDeliver = new HashMap<>();
+    protected HashMap<View, List<DataMessage>> waitToDeliver = new HashMap<>();
     protected final int HB_INTERVAL = 2000;
 
     protected Logger logger = null;
@@ -100,75 +100,13 @@ public abstract class Node extends AbstractActor {
             if (!p.equals(getSelf())) {
                 p.tell(m, getSelf());
                 try {
-                    Thread.sleep(rnd.nextInt(10));
+                    Thread.sleep(rnd.nextInt(12));
                 }
                 catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
         }
-    }
-
-    private View getPreviousView(View v) {
-        return new View(v.id-1, new ArrayList<>());
-    }
-
-    protected void onViewChangeMessage(ViewChangeMessage msg) {
-        View previousView = getPreviousView(msg.view);
-        if (unstableMessages.containsKey(previousView)) {
-            sendAllUnstableMessages(unstableMessages.get(previousView), msg.view);
-        }
-        multicastToView(new FlushMessage(msg.view), msg.view);
-        getSelf().tell(new FlushMessage(msg.view), getSelf());
-    }
-
-    protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
-        for (DataMessage m: messages) {
-            multicastToView(new A2AMessage(m.id, m.senderID), view);
-        }
-    }
-
-    protected boolean onFlushMessage(FlushMessage msg) {
-        View view = msg.view;
-        if (!receivedFlush.containsKey(view)) {
-            receivedFlush.put(view, new ArrayList<>());
-        }
-        receivedFlush.get(view).add(getSender());
-
-        if (receivedFlush.get(view).containsAll(view.members)) {
-            // all the flush messages has arrived for this view.
-            // It is time to install this view.
-            Iterator<Map.Entry<View, List<ActorRef>>> iter =
-                receivedFlush.entrySet().iterator();
-
-            while (iter.hasNext()) {
-                View v = iter.next().getKey();
-                // install all the "open" views up to the completely installed one
-                if (v.compareTo(view) <= 0) {
-                    logger.info(
-                            this.id + " install view "
-                            + v.id + " "
-                            + v.members.stream()
-                                .map((m) -> String.valueOf(actor2id.get(m)))
-                                .collect(Collectors.joining(","))
-                    );
-                    currentView = v;
-                    iter.remove();
-                    unstableMessages.remove(v);
-                    // deliver messages waiting for the view installation
-                    List<DataMessage> queue = waitToDeliver.get(v);
-                    // TODO: should we deliver also stable messages (i.e. put also them in the queue)?
-                    if (queue != null) {
-                        for (DataMessage m : queue) deliver(m);
-                    }
-                    waitToDeliver.remove(v);
-                }
-                else break;
-            }
-            // maybe this must be explained explicit
-            return receivedFlush.isEmpty();
-        }
-        return false;
     }
 
     private View fromWhichView(ActorRef sender) {
@@ -204,6 +142,16 @@ public abstract class Node extends AbstractActor {
         receivedMessages.get(currentView).add(msg);
     }
 
+    private View getPreviousView(View v) {
+        return new View(v.id-1, new ArrayList<>());
+    }
+
+    protected void sendAllUnstableMessages(List<DataMessage> messages, View view) {
+        for (DataMessage m: messages) {
+            multicastToView(new A2AMessage(m.id, m.senderID), view);
+        }
+    }
+
     protected void onDataMessage(DataMessage msg) {
         View senderView = fromWhichView(getSender());
         if (senderView == currentView) {
@@ -231,14 +179,72 @@ public abstract class Node extends AbstractActor {
 
     protected void onA2AMessage(A2AMessage msg) {
         View senderView = fromWhichView(getSender());
-        if (!receivedMessages.containsKey(senderView) && msg.senderID != this.id) {
-            if (senderView == currentView) {
-                // TODO: check A2A -> maybe it's not working!
-                deliver(msg);
-            }
-            else {
-                waitToDeliver.get(senderView).add(msg);
+        if (!receivedMessages.containsKey(senderView)) {
+            receivedMessages.put(senderView, new ArrayList<>());
+        }
+
+        // this must not be a message i've sent
+        if (msg.senderID != this.id) {
+            // the message must not have been already delivered
+            if (!receivedMessages.get(senderView).contains(msg)) {
+                // the message must belongs to the current view
+                if (senderView.equals(currentView)) {
+                    deliver(msg);
+                }
+                else {
+                    waitToDeliver.get(senderView).add(msg);
+                }
             }
         }
+    }
+
+    protected void onViewChangeMessage(ViewChangeMessage msg) {
+        View previousView = getPreviousView(msg.view);
+        if (unstableMessages.containsKey(previousView)) {
+            sendAllUnstableMessages(unstableMessages.get(previousView), msg.view);
+        }
+        multicastToView(new FlushMessage(msg.view), msg.view);
+        getSelf().tell(new FlushMessage(msg.view), getSelf());
+    }
+
+    protected boolean onFlushMessage(FlushMessage msg) {
+        View view = msg.view;
+        if (!receivedFlush.containsKey(view)) {
+            receivedFlush.put(view, new ArrayList<>());
+        }
+        receivedFlush.get(view).add(getSender());
+
+        if (receivedFlush.get(view).containsAll(view.members)) {
+            // all the flush messages has arrived for this view.
+            Iterator<Map.Entry<View, List<ActorRef>>> iter =
+                receivedFlush.entrySet().iterator();
+
+            // installs all the "open" views up to this current one
+            while (iter.hasNext()) {
+                View v = iter.next().getKey();
+                if (v.compareTo(view) <= 0) {
+                    logger.info(
+                            this.id + " install view "
+                            + v.id + " "
+                            + v.members.stream()
+                                .map((m) -> String.valueOf(actor2id.get(m)))
+                                .collect(Collectors.joining(","))
+                    );
+                    currentView = v;
+                    iter.remove();
+                    unstableMessages.remove(v);
+                    // deliver messages waiting for the view installation
+                    List<DataMessage> queue = waitToDeliver.get(v);
+                    if (queue != null) {
+                        for (DataMessage m : queue) deliver(m);
+                    }
+                    waitToDeliver.remove(v);
+                }
+                else break;
+            }
+            // this can be explained explicit
+            return receivedFlush.isEmpty();
+        }
+        return false;
     }
 }
