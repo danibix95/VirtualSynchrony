@@ -15,6 +15,9 @@
 \usepackage{url}
 \usepackage{algorithm}
 \usepackage{algorithmic}
+\usepackage{amsmath}
+
+\renewcommand{\algorithmicforall}{\textbf{for each}}
 
 \title{\LARGE{\textbf{Virtual Synchrony - Project Report}\\[0mm]\large{Distributed Systems 1, 2017 - 2018}}}
 \author{Daniele Bissoli - 197810, Andrea Zampieri - 198762}
@@ -27,9 +30,8 @@
 	In this project, we have implemented a simple group communication service that permits different members of a group to communicate through messages exchange. The management of the group is performed in a centralized fashion through a special node, named \textit{Group Manager}. As design requirement, the system provide is able to guarantee the Virtual Synchrony, providing the synchronization between members.
 	
 	\subsection{View and Virtual Synchrony}
-	A view is a local representation of the system, that is the set of group members that were still operational when last group update (join/crash) has been performed (\textbf{better?}). Each member of the group has its own view and they have to globally agree on the same view in order to consistently communicate. Moreover, a view can be seen as a system epoch, since it changes every time a new participant join the group or when a cohort is detected to be crashed.
+	A view is a local representation of the system, that is the set of group members that were still operational when last group update (join/crash) has been performed. Each member of the group has its own view and they have to globally agree on the same view in order to consistently communicate. Moreover, a view can be seen as a system epoch, since it changes every time a new participant join the group or when a cohort is detected to be crashed.
 	Under the assumptions of reliable links and FIFO channels, \textit{Virtual Synchrony} is the mechanism which guarantees that messages sent in a specific epoch are delivered to all the group members and just those participant in that epoch.
-	(\textbf{I've tried to integrate/replace with your better explanation})
 	
 	\section{Project Architecture}
 	The project is divided into three main classes (\textit{Node}, \textit{Participant} and \textit{Group Manager}). In addition, it contains the definition of all exchanged messages and the class in charge to manage the creation of the system. In the following paragraphs the three main classes will be explained.
@@ -75,11 +77,18 @@
 	The implementation in our project is slightly different from the one later proposed by Timofei Istomin. The following pseudo-code and the comment should clarify the process.
 	
 	\begin{algorithm}
-		\begin{algorithmic}
+	\begin{algorithmic}
 		\REQUIRE $\text{flush message }f_{a}(v_{i}) \text{ from node a for new view } v_{i} $
-		\STATE $ TODO FINISH$
-		\end{algorithmic}		
-	\end{algorithm}
+		\IF {$ \text{all nodes in } v_{i-1} \text{ sent the flush for } v_{i} $}
+			\FORALL{$v_{k} \text{ with } i < k \le j $}
+				\STATE $ \text{install } v_{k} $
+				\STATE $ \text{deliver all messages } m \text{ that were sent in } v_{k} $
+			\ENDFOR
+			\RETURN $ \exists v_{l}, l > i, s.t. \text{ is still missing flushes}$
+		\ENDIF
+		\RETURN false
+	\end{algorithmic}	
+	\end{algorithm}	
 	
 	When a flush message is received, the process checks whether all the flushes have been collected from the other participants for the installation of a successive view $v_{j}$. If so, all the successive (and pending) views to the current $v_{i}$ are installed in order. This can be the case since faulty nodes may not send the flush message and leave some views pending, thus these ones need to be cascadingly installed once a more recent one meets the requisites.\newline
 	Each view $v_{k} \text{ s.t. } i < k \le j$ gets installed and messages queued waiting for the right view are delivered.\newline
