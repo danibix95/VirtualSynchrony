@@ -27,32 +27,34 @@
 	In this project, we have implemented a simple group communication service that permits different members of a group to communicate through messages exchange. The management of the group is performed in a centralized fashion through a special node, named \textit{Group Manager}. As design requirement, the system provide is able to guarantee the Virtual Synchrony, providing the synchronization between members.
 	
 	\subsection{View and Virtual Synchrony}
-	A view is a local representation of the system, that is the set of group members that are still operational \textbf{[? maybe someone has crashed in the view, this sentence maybe false]}. Each member of the group has its own view and they have to globally agree on the same view in order to consistently communicate. Moreover, a view can be seen as a system epoch, since it changes every time a new participant join the group or when a cohort is detected to be crashed.
-	Under the assumptions of reliable links and FIFO channels, \textit{Virtual Synchrony} is the mechanism which makes all group members synchronize upon the same view. In this way messages are guaranteed to be delivered to all the currently operational nodes. \textbf{[? VS doesn't synch (in the sense that all the nodes wait for the others to catch up like in a "concurrent" approach), instead VS assures that messages that are sent in an epoch are delivered to all and just the nodes in that epoch]}
+	A view is a local representation of the system, that is the set of group members that were still operational when last group update (join/crash) has been performed (\textbf{better?}). Each member of the group has its own view and they have to globally agree on the same view in order to consistently communicate. Moreover, a view can be seen as a system epoch, since it changes every time a new participant join the group or when a cohort is detected to be crashed.
+	Under the assumptions of reliable links and FIFO channels, \textit{Virtual Synchrony} is the mechanism which guarantees that messages sent in a specific epoch are delivered to all the group members and just those participant in that epoch.
+	(\textbf{I've tried to integrate/replace with your better explanation})
 	
 	\section{Project Architecture}
 	The project is divided into three main classes (\textit{Node}, \textit{Participant} and \textit{Group Manager}). In addition, it contains the definition of all exchanged messages and the class in charge to manage the creation of the system. In the following paragraphs the three main classes will be explained.
 	
 	\subsection{Node}
-	This is the main class, which represent a common group member (also called \textit{participant}). It defines the main functionalities of a group member which communicate under the Virtual Synchrony. These are:
+	This is the main class, which represent a common group member (also called \textit{participant}). It defines the main functionalities of a group member which communicates under the Virtual Synchrony. These are:
 	\begin{itemize}
-		\item \textbf{reception\textbf{[? maybe receipt]} of a message} - when a data message is received, it is delivered to the application, but a copy of it is kept until the stability of it is reached, which means that the sender was able to send that message to everybody in the group. \textbf{[ALT: ...but a copy of it is kept until it becomes \textit{"stable"}]}
-		\item \textbf{stability of a received message} - upon the reception \textbf{[? receipt?]} of this message, the corresponding \textbf{[? copy of the]} data message can be deleted since it is confirmed that the \textbf{[? it]} message has been delivered to everybody in the group.
-		\item \textbf{management of views} - when a view change message is received, it is responsible to check for unstable messages. If so, send them to all the group participants and the send a flush message that signal its intention changing the view
-		\item \textbf{view change mechanism} - once a flush message is received, it checks if all the flush for that view has been received. If so, it performs a view installation (progress to next view). If there were previous views that were still open, it first install them \textbf{[? , deliver all messages not delivered for that particular]} and then it install the latest \textbf{[? possible]} one.
+		\item \textbf{receipt of a message} - when a data message is received, it is delivered to the application, but a copy of it is kept until it becomes \textit{``stable''}, which means the sender was able to send that message to everybody in the group.
+		\item \textbf{receipt of a stable message} - upon this message is received, the corresponding copy of the data message can be safely deleted since it is confirmed that the message has been delivered to everybody in the group.
+		\item \textbf{view change mechanism} - perform same steps as stated by Virtual Synchrony. For implementation details refer to section \ref{sec:imp_details}.
+%		when a view change message is received, each node is responsible to check for any unstable messages. Then, if it is the case, all the unstable message are sent to all the group participants through what is called an \textit{all-to-all} exchange. Finally, each node sends a flush message to signal its intention of changing the view. Every time a flush message is received, it checks if all the flush for that view has been received. If so, it performs a view installation (progress to next view). If there were previous views that were still open, it first install them \textbf{[? , deliver all messages not delivered for that particular]} and then it install the latest \textbf{[? possible]} one.
 	\end{itemize}
+	Moreover, each node exploits a View object to keep track of which messages have been delivered, which are still unstable and to recognize whether all the flush messages has been received.
 	
 	\subsection{Participant}
 	It represent a member of the group which continuously sends and receives message from others. It extends the \textit{Node} class providing more functionalities such as send of data messages and mechanisms to set the participant as crashed. In addition, it provides a finer implementation of some functionalities as flush messages management and view change.
 	
 	It inherits all the attributes of \textit{Node} (e.g. the list of received messages, the unstable ones (with respect to each view) and the queue for messages received too early), and adds some of its own in order to be able to control the flow and the behaviour of the actors. Other than trivial ones (messageID, MIN\_DELAY, MAX\_DELAY for handling the transmission of new messages) there are some status variables to enforce the wanted behaviour. 
 	\begin{itemize}
-		\item [-] \textit{\textbf{justEntered}}: it's used just once to trigger a new \textit{SendDatamessage} that makes the process send a new multicast, and reissues itself with a random delay $d \in [\text{MIN\_DELAY,MAX\_DELAY}]$
+		\item [-] \textit{\textbf{justEntered}}: it is used just once to trigger a new \textit{SendDatamessage} that makes the process send a new multicast, and reissues itself with a random delay $d \in [\text{MIN\_DELAY, MAX\_DELAY}]$
 		\item [-] \textit{\textbf{allowSending}}: as its name tells, when its value is \textbf{false}, the process won't send any new message to the others in the system
 		\item [-] \textit{\textbf{crashed}}: tells whether the process has failed or not (it's used to simulate the crash of a given process); this variable can be set in different manners 
 	\end{itemize}
-	As described in the Virtual Synchrony protocol, once a node receives a message informing of a view change, all the unstable messages for the previous epoch are sent to all the participants in the new view, ensuring that all the operational processes receive all the messages sent from everybody within its epoch. This avoids the situation in which some node don't receive certain messages from a crashed node, catching up thanks to the non-faulty ones still running.
-	This kind of message is differentiated from the \textit{standard} one, since when this kind of messages is received, no copy of it occurs since it can be seen as \textit{already stable}.
+	As described in the Virtual Synchrony protocol, once a node receives a message informing of a view change, all the unstable messages for the previous epoch are sent to all the participants in the new view, ensuring that all the operational processes receive all the messages sent from everybody within its epoch. This avoids the situation in which some node does not receive certain messages from a crashed one, catching up thanks to the non-faulty participants still running.
+	This kind of message is differentiated from the \textit{standard} one, since when this kind of messages is received, no copy of it occurs because it can be seen as \textit{already stable}.
 	
 	\subsection{Group Manager}
 	It is a \textit{reliable} group participant responsible to coordinate view updates between group members. It is built on top of the \textit{Node} class and therefore it share most of the characteristics of a group participant. Indeed, it also implement Virtual Syncrony logics, such as reaction to View Change and flush messages, although it is only able to receive messages. Besides that, it is in charge of detecting crashes, which is recognized through timeout mechanism based on:
@@ -68,8 +70,9 @@
 %	\textbf{We need to specify that participant multicast to everybody but itself, but the checker doesn't take into account that. I mean, the checker doesn't take into account the fact that a node can crash silently. So it signals that there are some messages that are not delivered to all the participant in that epoc, but those who're missing are not operational anymore, so it should be fine.}
 	
 	\section{Implementation Details}
+	\label{sec:imp_details}
 	\subsection{Management of flushes and view-changes}
-	The implementation in our project is slightly different from the one later proposed by Timofei Istomin. The following psudocode and the comment should clarify the process.
+	The implementation in our project is slightly different from the one later proposed by Timofei Istomin. The following pseudo-code and the comment should clarify the process.
 	
 	\begin{algorithm}
 		\begin{algorithmic}
@@ -79,9 +82,10 @@
 	\end{algorithm}
 	
 	When a flush message is received, the process checks whether all the flushes have been collected from the other participants for the installation of a successive view $v_{j}$. If so, all the successive (and pending) views to the current $v_{i}$ are installed in order. This can be the case since faulty nodes may not send the flush message and leave some views pending, thus these ones need to be cascadingly installed once a more recent one meets the requisites.\newline
-	Each view $v_{k} \text{ s.t. } i < k \le j$ gets installed and delivers the messages that may be queued for the right view to deliver.\newline
+	Each view $v_{k} \text{ s.t. } i < k \le j$ gets installed and messages queued waiting for the right view are delivered.\newline
 	
-	The method returns a boolean value that's consumed by the participants (the ones that send messages) in order to set their variable \texttt{allowSending} assuring the wanted behaviour. If no new view is installed, the return value will be \texttt{false}: the system is trying to install a/some new view(s) and in this state the processes can't generate new messages; otherwise the ability of sending messages is restored only there are no pending views to be installed (according to the process). Violating this condition could lead to delivery of messages in wrong epochs from other processes, since they would infer the wrong view from which the message has been sent (and they couldn't do elseways).
+	The boolean returned valued is then exploited to check if a new view was installed and no other view change are still pending. Only in that case \texttt{allowSending} can be set back to \texttt{true} assuring the desired behaviour.
+	Starting sending while the view change process is still running can lead to delivery of messages in wrong epochs from other processes, since they would infer the wrong view from which the message has been sent (and they could not do else ways).
 		
 	\subsection{Heartbeat}
 	Each participant constantly sends a \textit{HeartbeatMessage} to the Group Manager: its function is just to "prove" the liveness of the process. This message doesn't get interrupted nor interferes with the behaviour and evolution of the system and it's just a trick to detect silent crashes of the nodes.
