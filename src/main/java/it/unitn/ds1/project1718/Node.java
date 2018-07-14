@@ -143,6 +143,7 @@ public abstract class Node extends AbstractActor {
     }
 
     private View getPreviousView(View v) {
+        // by construction the previuous view to v is the one with id--
         return new View(v.id-1, new ArrayList<>());
     }
 
@@ -242,7 +243,9 @@ public abstract class Node extends AbstractActor {
                 }
                 else break;
             }
-            // this can be explained explicit
+            // returns true if no other view is pending to be installed
+            // the return value tells the participant if it can resume
+            // to send messages or not
             return receivedFlush.isEmpty();
         }
         return false;
