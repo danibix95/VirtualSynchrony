@@ -90,7 +90,7 @@ public class VirtualSynchrony {
                         break;
                     case "e":
                         System.out.println("Exit...");
-                        actorsGroup.forEach((k, v) -> v.tell(new ExitMessage(), null));
+                        actorsGroup.forEach((k, actor) -> actor.tell(new ExitMessage(), null));
                         try {
                             Thread.sleep(500);
                         }
@@ -109,7 +109,7 @@ public class VirtualSynchrony {
     }
 
     /** Send given crash message to selected actor
-    *   and update the tracking structure removing the actor. */
+    *   and update the tracking structure removing the actor from it. */
     private static void manageCrashMessage(Scanner scr,
         HashMap<Integer, ActorRef> actors, CrashMessage msg) {
 
@@ -121,15 +121,15 @@ public class VirtualSynchrony {
                 System.out.println("Selected actor will crash " + msg.info);
             }
             else {
-                System.out.println("Given actor doesn't exist!");
+                System.out.println("Given actor does not exist!");
             }
         }
         catch (InputMismatchException ime) {
-            System.out.println("\nYou've not passed an integer id!");
+            System.out.println("\nYou have not passed an integer id!");
             scr.skip(".*");
         }
         catch (NoSuchElementException nsee) {
-            System.out.println("\nNo input passed!");
+            System.out.println("\nNo input given!");
         }
     }
 }

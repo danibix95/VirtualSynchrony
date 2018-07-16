@@ -9,6 +9,7 @@ import java.time.Duration;
 
 public class Participant extends Node {
     private int messageID;
+    // delays are expressed in milliseconds
     private final int MAX_DELAY = 2000;
     private final int MIN_DELAY = 1200;
     private ActorRef groupManager;
@@ -173,22 +174,18 @@ public class Participant extends Node {
 
     private void onCrashMessage(CrashMessage msg) {
         crashed = true;
-//        logger.info(this.id + " crashed!");
     }
 
     private void onCrashWhileSendingMessage(CrashSendingMessage msg) {
         crashSending = true;
-//        logger.info(this.id + " going to crash on next multicast!");
     }
 
     private void onCrashAfterReceiveMessage(CrashReceivingMessage msg) {
         crashReceiving = true;
-//        logger.info(this.id + " going to crash on next receiving!");
     }
 
     private void onCrashOnViewChangeMessage(CrashOnViewChangeMessage msg) {
         crashOnViewChange = true;
-//        logger.info(this.id + " going to crash on next view change!");
     }
 
     private void onExitMessage(ExitMessage msg) {
