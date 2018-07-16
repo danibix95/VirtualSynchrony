@@ -40,7 +40,7 @@ public class Messages {
         }
     }
 
-    // message used during data exchange (all-to-all procedure)
+    // message employed during data exchange (all-to-all procedure)
     // before flush messages are sent
     public static class A2AMessage extends DataMessage {
         public A2AMessage(int id, int originalSender) {
@@ -54,7 +54,7 @@ public class Messages {
         public ViewChangeMessage(View view, HashMap<ActorRef, Integer> actorMapping) {
             this.view = view;
             this.actorMapping = actorMapping;
-        }    	
+        }
     }
 
     public static class FlushMessage implements Serializable {

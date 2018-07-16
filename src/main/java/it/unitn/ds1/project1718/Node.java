@@ -13,10 +13,10 @@ import java.util.stream.Collectors;
 public abstract class Node extends AbstractActor {
     protected int id;
     protected View currentView;
+    protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
+    protected HashMap<View, List<DataMessage>> receivedMessages = new HashMap<>();
     protected HashMap<View, List<DataMessage>> unstableMessages = new HashMap<>();
     protected TreeMap<View, List<ActorRef>> receivedFlush = new TreeMap<>();
-    protected HashMap<View, List<DataMessage>> receivedMessages = new HashMap<>();
-    protected HashMap<ActorRef, Integer> actor2id = new HashMap<>();
     protected HashMap<View, List<DataMessage>> waitToDeliver = new HashMap<>();
     protected final int HB_INTERVAL = 2000;
 
@@ -184,7 +184,7 @@ public abstract class Node extends AbstractActor {
             receivedMessages.put(senderView, new ArrayList<>());
         }
 
-        // this must not be a message i've sent
+        // this must not be a message I've sent
         if (msg.senderID != this.id) {
             // the message must not have been already delivered
             if (!receivedMessages.get(senderView).contains(msg)) {
@@ -225,11 +225,11 @@ public abstract class Node extends AbstractActor {
                 View v = iter.next().getKey();
                 if (v.compareTo(view) <= 0) {
                     logger.info(
-                            this.id + " install view "
-                            + v.id + " "
-                            + v.members.stream()
-                                .map((m) -> String.valueOf(actor2id.get(m)))
-                                .collect(Collectors.joining(","))
+                        this.id + " install view "
+                        + v.id + " "
+                        + v.members.stream()
+                            .map((m) -> String.valueOf(actor2id.get(m)))
+                            .collect(Collectors.joining(","))
                     );
                     currentView = v;
                     iter.remove();
